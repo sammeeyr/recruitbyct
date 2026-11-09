@@ -59,6 +59,7 @@ export default async function handler(req: Request): Promise<Response> {
             "POST   /interviews/submit  - Submit candidate responses & generate AI evaluation scorecard",
             "GET    /roles              - List all system roles in database",
             "GET    /users              - List registered administrator and user accounts",
+            "GET    /clients            - List corporate client employers",
           ],
           timestamp: new Date().toISOString(),
         },
@@ -77,7 +78,7 @@ export default async function handler(req: Request): Promise<Response> {
         // Recruiters see all orders including drafts and listing fee payment statuses
         jobs = await sql`
           SELECT 
-            id, title, location, work_type, category, salary_min, salary_max,
+            id, client_id, title, location, work_type, category, salary_min, salary_max,
             state, approved, is_published, is_confidential, show_salary,
             summary, recruiter_email, listing_fee_paid, listing_fee_ref, listing_fee_amount,
             duties, must_have_skills, nice_to_have_skills, created_at, updated_at
@@ -88,7 +89,7 @@ export default async function handler(req: Request): Promise<Response> {
         // Candidates and clients only see live, published jobs
         jobs = await sql`
           SELECT 
-            id, title, location, work_type, category, salary_min, salary_max,
+            id, client_id, title, location, work_type, category, salary_min, salary_max,
             state, approved, is_published, is_confidential, show_salary,
             summary, duties, must_have_skills, nice_to_have_skills, created_at
           FROM job_orders
@@ -105,6 +106,18 @@ export default async function handler(req: Request): Promise<Response> {
         },
         { headers: corsHeaders }
       );
+    }
+
+    // 2b. GET /clients - List Corporate Client Employers
+    if (path === "/clients" && method === "GET") {
+      const dbClients = await sql`
+        SELECT 
+          id, slug, name, industry, contact_name, contact_email, contact_phone,
+          fee_percentage, guarantee_days, created_at
+        FROM clients
+        ORDER BY name;
+      `;
+      return Response.json({ count: dbClients.length, clients: dbClients }, { headers: corsHeaders });
     }
 
     // 3. POST /jobs - Create New Job Order (Draft requiring ₦10,000 listing fee)
@@ -162,7 +175,7 @@ export default async function handler(req: Request): Promise<Response> {
       );
     }
 
-    // 3b. PATCH /jobs - Update Job Order (Admin/Recruiter CRUD)
+    // 3b. PATCH /jobs - Update Job Order (Admin/Recruiter CRUD & Scorecard Edit)
     if (path === "/jobs" && (method === "PATCH" || method === "PUT")) {
       const body = await req.json();
       const jobId = body.id || url.searchParams.get("id");
@@ -188,6 +201,44 @@ export default async function handler(req: Request): Promise<Response> {
         niceToHaveSkills,
       } = body;
 
+      // Check if job exists in job_orders
+      const existing = await sql`SELECT id FROM job_orders WHERE id = ${jobId} LIMIT 1;`;
+
+      if (existing.length === 0) {
+        // Upsert / insert if it doesn't exist yet
+        const [insertedJob] = await sql`
+          INSERT INTO job_orders (
+            id, title, location, work_type, category, salary_min, salary_max,
+            summary, state, approved, is_published, is_confidential, show_salary,
+            duties, must_have_skills, nice_to_have_skills, created_at, updated_at
+          ) VALUES (
+            ${jobId},
+            ${title || "Job Order"},
+            ${location || "Abuja"},
+            ${workType || "Full-time"},
+            ${category || "Customer service"},
+            ${salaryMin || 300000},
+            ${salaryMax || 450000},
+            ${summary || ""},
+            ${state || "open"},
+            ${approved ?? true},
+            ${isPublished ?? true},
+            ${isConfidential ?? false},
+            ${showSalary ?? true},
+            ${JSON.stringify(duties || [])}::jsonb,
+            ${JSON.stringify(mustHaveSkills || [])}::jsonb,
+            ${JSON.stringify(niceToHaveSkills || [])}::jsonb,
+            NOW(),
+            NOW()
+          )
+          RETURNING id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
+        `;
+        return Response.json(
+          { status: "success", message: "Job order created and saved successfully", job: insertedJob },
+          { headers: corsHeaders }
+        );
+      }
+
       const [updatedJob] = await sql`
         UPDATE job_orders
         SET
@@ -203,20 +254,16 @@ export default async function handler(req: Request): Promise<Response> {
           is_published = COALESCE(${isPublished}, is_published),
           is_confidential = COALESCE(${isConfidential}, is_confidential),
           show_salary = COALESCE(${showSalary}, show_salary),
-          duties = CASE WHEN ${duties !== undefined} THEN ${JSON.stringify(duties)}::jsonb ELSE duties END,
-          must_have_skills = CASE WHEN ${mustHaveSkills !== undefined} THEN ${JSON.stringify(mustHaveSkills)}::jsonb ELSE must_have_skills END,
-          nice_to_have_skills = CASE WHEN ${niceToHaveSkills !== undefined} THEN ${JSON.stringify(niceToHaveSkills)}::jsonb ELSE nice_to_have_skills END,
+          duties = CASE WHEN ${duties !== undefined} THEN ${JSON.stringify(duties || [])}::jsonb ELSE duties END,
+          must_have_skills = CASE WHEN ${mustHaveSkills !== undefined} THEN ${JSON.stringify(mustHaveSkills || [])}::jsonb ELSE must_have_skills END,
+          nice_to_have_skills = CASE WHEN ${niceToHaveSkills !== undefined} THEN ${JSON.stringify(niceToHaveSkills || [])}::jsonb ELSE nice_to_have_skills END,
           updated_at = NOW()
         WHERE id = ${jobId}
-        RETURNING id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, updated_at;
+        RETURNING id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
       `;
 
-      if (!updatedJob) {
-        return Response.json({ error: "Job order not found" }, { status: 404, headers: corsHeaders });
-      }
-
       return Response.json(
-        { status: "success", message: "Job order updated successfully", job: updatedJob },
+        { status: "success", message: "Job order and scorecard updated successfully", job: updatedJob },
         { headers: corsHeaders }
       );
     }
@@ -451,6 +498,99 @@ export default async function handler(req: Request): Promise<Response> {
 
       return Response.json(
         { status: "success", message: `Application advanced to stage: ${stage}`, application: updated },
+        { headers: corsHeaders }
+      );
+    }
+
+    // 6c. PATCH /applications - Update Application State & Metadata
+    if (path === "/applications" && (method === "PATCH" || method === "PUT")) {
+      const body = await req.json();
+      const id = body.id || url.searchParams.get("id");
+      if (!id) {
+        return Response.json({ error: "Application ID is required" }, { status: 400, headers: corsHeaders });
+      }
+
+      const { stage, notes, isRevealedToClient, isOnHold } = body;
+
+      const [updated] = await sql`
+        UPDATE applications
+        SET
+          stage = COALESCE(${stage}, stage),
+          recruiter_notes = COALESCE(${notes}, recruiter_notes),
+          is_revealed_to_client = COALESCE(${isRevealedToClient}, is_revealed_to_client),
+          is_on_hold = COALESCE(${isOnHold}, is_on_hold),
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING id, reference_code, stage, recruiter_notes, is_revealed_to_client, is_on_hold, updated_at;
+      `;
+
+      if (!updated) {
+        return Response.json({ error: "Application not found" }, { status: 404, headers: corsHeaders });
+      }
+
+      return Response.json(
+        { status: "success", message: "Application updated successfully", application: updated },
+        { headers: corsHeaders }
+      );
+    }
+
+    // 6b. GET /applications - Pipeline Applications List
+    if (path === "/applications" && method === "GET") {
+      const jobId = url.searchParams.get("jobId");
+      const stage = url.searchParams.get("stage");
+
+      let apps: any[];
+      if (jobId && stage) {
+        apps = await sql`
+          SELECT 
+            a.id, a.reference_code, a.job_id, a.candidate_id, a.stage, a.source,
+            a.knockout_answers, a.resume_file_url, a.recruiter_notes, a.ai_interview,
+            a.is_revealed_to_client, a.is_on_hold, a.created_at, a.updated_at,
+            c.full_name as candidate_name, c.email as candidate_email, c.phone as candidate_phone,
+            c.location as candidate_location, c.headline as candidate_headline, c.years_experience as candidate_years,
+            c.skills as candidate_skills,
+            j.title as job_title
+          FROM applications a
+          LEFT JOIN candidates c ON a.candidate_id = c.id
+          LEFT JOIN job_orders j ON a.job_id = j.id
+          WHERE a.job_id = ${jobId} AND a.stage = ${stage}
+          ORDER BY a.created_at DESC;
+        `;
+      } else if (jobId) {
+        apps = await sql`
+          SELECT 
+            a.id, a.reference_code, a.job_id, a.candidate_id, a.stage, a.source,
+            a.knockout_answers, a.resume_file_url, a.recruiter_notes, a.ai_interview,
+            a.is_revealed_to_client, a.is_on_hold, a.created_at, a.updated_at,
+            c.full_name as candidate_name, c.email as candidate_email, c.phone as candidate_phone,
+            c.location as candidate_location, c.headline as candidate_headline, c.years_experience as candidate_years,
+            c.skills as candidate_skills,
+            j.title as job_title
+          FROM applications a
+          LEFT JOIN candidates c ON a.candidate_id = c.id
+          LEFT JOIN job_orders j ON a.job_id = j.id
+          WHERE a.job_id = ${jobId}
+          ORDER BY a.created_at DESC;
+        `;
+      } else {
+        apps = await sql`
+          SELECT 
+            a.id, a.reference_code, a.job_id, a.candidate_id, a.stage, a.source,
+            a.knockout_answers, a.resume_file_url, a.recruiter_notes, a.ai_interview,
+            a.is_revealed_to_client, a.is_on_hold, a.created_at, a.updated_at,
+            c.full_name as candidate_name, c.email as candidate_email, c.phone as candidate_phone,
+            c.location as candidate_location, c.headline as candidate_headline, c.years_experience as candidate_years,
+            c.skills as candidate_skills,
+            j.title as job_title
+          FROM applications a
+          LEFT JOIN candidates c ON a.candidate_id = c.id
+          LEFT JOIN job_orders j ON a.job_id = j.id
+          ORDER BY a.created_at DESC;
+        `;
+      }
+
+      return Response.json(
+        { count: apps.length, applications: apps },
         { headers: corsHeaders }
       );
     }

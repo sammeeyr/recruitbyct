@@ -132,12 +132,12 @@ interface AppContextType {
     closes: string;
   }) => void;
   createJobOrder: (job: JobOrder) => void;
-  updateJobOrder: (jobId: string, updates: Partial<JobOrder>) => void;
+  updateJobOrder: (jobId: string, updates: Partial<JobOrder>) => Promise<{ success: boolean; error?: string }>;
   deleteJobOrder: (jobId: string) => void;
   importBatchCandidates: (jobId: string, candidatesList: any[]) => void;
-  approveJobScorecard: (jobId: string) => void;
-  updateJobListing: (jobId: string, updates: Partial<JobOrder['listing']>) => void;
-  updateJobState: (jobId: string, state: JobOrder['state']) => void;
+  approveJobScorecard: (jobId: string) => Promise<{ success: boolean; error?: string }>;
+  updateJobListing: (jobId: string, updates: Partial<JobOrder['listing']>) => Promise<void>;
+  updateJobState: (jobId: string, state: JobOrder['state']) => Promise<void>;
   addCandidateToPipeline: (candId: string, jobId: string) => void;
   updateApplicationNotes: (appId: string, notes: string) => void;
   sendRejectMessage: (appId: string) => void;
@@ -412,6 +412,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               recruiterEmail: dbJob.recruiter_email || 'recruiter@cubetechconsults.com'
             }));
             setJobs(mappedJobs);
+            saveStorage('jobs', mappedJobs);
           }
         }
 
@@ -435,6 +436,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               phone: dbCand.phone || ''
             }));
             setCandidates(mappedCands);
+            saveStorage('cands', mappedCands);
+          }
+        }
+
+        // 3. Fetch live clients from Neon Postgres
+        const clientsRes = await fetch(`${NEON_ATS_API}/clients`);
+        if (clientsRes.ok) {
+          const clientsData = await clientsRes.json();
+          if (Array.isArray(clientsData.clients) && clientsData.clients.length > 0 && isMounted) {
+            const mappedClients: Client[] = clientsData.clients.map((c: any) => ({
+              id: String(c.id),
+              name: c.name,
+              industry: c.industry || 'Corporate',
+              contact: c.contact_name || c.name,
+              email: c.contact_email || 'client@cubetechconsults.com',
+              feePct: Number(c.fee_percentage) || 15,
+              guaranteeDays: Number(c.guarantee_days) || 90
+            }));
+            setClients(mappedClients);
+            saveStorage('clients', mappedClients);
+          }
+        }
+
+        // 4. Fetch live applications from Neon Postgres
+        const appsRes = await fetch(`${NEON_ATS_API}/applications`);
+        if (appsRes.ok) {
+          const appsData = await appsRes.json();
+          if (Array.isArray(appsData.applications) && appsData.applications.length > 0 && isMounted) {
+            const mappedApps: Application[] = appsData.applications.map((a: any) => ({
+              id: String(a.id),
+              ref: a.reference_code,
+              jobId: String(a.job_id),
+              candId: String(a.candidate_id),
+              stage: a.stage,
+              applied: a.created_at ? String(a.created_at).split('T')[0] : '2026-11-09',
+              updated: a.updated_at ? String(a.updated_at).split('T')[0] : '2026-11-09',
+              source: a.source || 'Careers portal',
+              answers: a.knockout_answers || {},
+              file: a.resume_file_url || `${a.candidate_name ? a.candidate_name.replace(/\s+/g, '_') : 'Resume'}_CV.pdf`,
+              notes: a.recruiter_notes || '',
+              revealed: Boolean(a.is_revealed_to_client),
+              hold: Boolean(a.is_on_hold),
+              aiInterview: a.ai_interview || undefined
+            }));
+            setApplications(mappedApps);
+            saveStorage('apps', mappedApps);
           }
         }
       } catch (err) {
@@ -919,42 +966,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Job role '${newJob.title}' created.`);
   };
 
-  // 2. Update existing job order (Admin/Recruiter Edit + AI Polish)
-  const updateJobOrder = (jobId: string, updates: Partial<JobOrder>) => {
-    setJobs(prev =>
-      prev.map(j => {
-        if (j.id !== jobId) return j;
-        return { ...j, ...updates };
-      })
-    );
+  // 2. Update existing job order (Admin/Recruiter Edit + AI Polish & Scorecard save)
+  const updateJobOrder = async (
+    jobId: string,
+    updates: Partial<JobOrder>
+  ): Promise<{ success: boolean; error?: string }> => {
+    // Optimistically update React state and localStorage immediately
+    const nextJobs = jobs.map(j => {
+      if (j.id !== jobId) return j;
+      return { ...j, ...updates };
+    });
+    setJobs(nextJobs);
+    saveStorage('jobs', nextJobs);
 
-    // Live sync to Neon Postgres ATS API
-    fetch(`${NEON_ATS_API}/jobs`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: jobId,
-        title: updates.title,
-        location: updates.location,
-        workType: updates.type,
-        category: updates.category,
-        salaryMin: updates.salary ? updates.salary[0] : undefined,
-        salaryMax: updates.salary ? updates.salary[1] : undefined,
-        summary: updates.summary,
-        state: updates.state,
-        approved: updates.approved,
-        isPublished: updates.listing?.published,
-        isConfidential: updates.listing?.confidential,
-        showSalary: updates.listing?.showSalary,
-        duties: updates.duties,
-        mustHaveSkills: updates.must,
-        niceToHaveSkills: updates.nice
-      })
-    }).catch(e => console.warn('[Neon Sync] Update job notice:', e));
+    try {
+      const res = await fetch(`${NEON_ATS_API}/jobs`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: jobId,
+          title: updates.title,
+          location: updates.location,
+          workType: updates.type,
+          category: updates.category,
+          salaryMin: updates.salary ? updates.salary[0] : undefined,
+          salaryMax: updates.salary ? updates.salary[1] : undefined,
+          summary: updates.summary,
+          state: updates.state,
+          approved: updates.approved,
+          isPublished: updates.listing?.published,
+          isConfidential: updates.listing?.confidential,
+          showSalary: updates.listing?.showSalary,
+          duties: updates.duties,
+          mustHaveSkills: updates.must,
+          niceToHaveSkills: updates.nice
+        })
+      });
 
-    const j = jobs.find(x => x.id === jobId);
-    logActivity(`Updated job order: ${updates.title || j?.title || jobId}`);
-    showToast(`Job '${updates.title || j?.title}' updated successfully.`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        const errMsg = errorData.error || errorData.details || `Server returned HTTP ${res.status}`;
+        console.error('[Neon ATS API Error] Update job failed:', errMsg);
+        showToast(`Warning: Failed to persist to Neon (${errMsg}). Saved locally.`);
+        return { success: false, error: errMsg };
+      }
+
+      const j = jobs.find(x => x.id === jobId);
+      logActivity(`Updated job order: ${updates.title || j?.title || jobId}`);
+      showToast(`Job '${updates.title || j?.title}' and scorecard saved to database.`);
+      return { success: true };
+    } catch (err: any) {
+      const errMsg = err?.message || 'Network error connecting to Neon';
+      console.warn('[Neon Sync] Update job notice:', errMsg);
+      showToast('Offline mode: Saved scorecard in browser storage.');
+      return { success: false, error: errMsg };
+    }
   };
 
   // 3. Delete job order
@@ -1046,44 +1112,100 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Successfully imported ${candidatesList.length} candidates into pipeline.`);
   };
 
-  // Scorecard approval
-  const approveJobScorecard = (jobId: string) => {
-    setJobs(prev =>
-      prev.map(j => {
-        if (j.id !== jobId) return j;
-        return {
-          ...j,
+  // Scorecard approval (persisted to database & localStorage)
+  const approveJobScorecard = async (jobId: string): Promise<{ success: boolean; error?: string }> => {
+    const nextJobs = jobs.map(j => {
+      if (j.id !== jobId) return j;
+      return {
+        ...j,
+        approved: true,
+        state: 'open' as const,
+        listing: { ...j.listing, published: true }
+      };
+    });
+    setJobs(nextJobs);
+    saveStorage('jobs', nextJobs);
+
+    try {
+      const res = await fetch(`${NEON_ATS_API}/jobs`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: jobId,
           approved: true,
           state: 'open',
-          listing: { ...j.listing, published: true }
-        };
-      })
-    );
-    const j = jobs.find(x => x.id === jobId);
-    if (j) logActivity(`Scorecard approved for ${j.title}`);
-    showToast('Approved and published to the careers site.');
+          isPublished: true
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const errMsg = errData.error || `Server HTTP ${res.status}`;
+        console.error('[Neon ATS API Error] Approve scorecard failed:', errMsg);
+        return { success: false, error: errMsg };
+      }
+
+      const j = jobs.find(x => x.id === jobId);
+      if (j) logActivity(`Scorecard approved for ${j.title}`);
+      showToast('Approved and published to the careers site & live database.');
+      return { success: true };
+    } catch (err: any) {
+      console.warn('[Neon Sync] Approve job notice:', err);
+      showToast('Approved locally. Sync will complete when online.');
+      return { success: true };
+    }
   };
 
-  const updateJobListing = (jobId: string, updates: Partial<JobOrder['listing']>) => {
-    setJobs(prev =>
-      prev.map(j => {
-        if (j.id !== jobId) return j;
-        return { ...j, listing: { ...j.listing, ...updates } };
-      })
-    );
-    showToast('Listing updated.');
+  const updateJobListing = async (jobId: string, updates: Partial<JobOrder['listing']>): Promise<void> => {
+    const nextJobs = jobs.map(j => {
+      if (j.id !== jobId) return j;
+      return { ...j, listing: { ...j.listing, ...updates } };
+    });
+    setJobs(nextJobs);
+    saveStorage('jobs', nextJobs);
+
+    try {
+      await fetch(`${NEON_ATS_API}/jobs`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: jobId,
+          isPublished: updates.published,
+          isConfidential: updates.confidential,
+          showSalary: updates.showSalary
+        })
+      });
+      showToast('Listing updated in database.');
+    } catch (e) {
+      console.warn('[Neon Sync] Listing update notice:', e);
+      showToast('Listing updated locally.');
+    }
   };
 
-  const updateJobState = (jobId: string, state: JobOrder['state']) => {
-    setJobs(prev =>
-      prev.map(j => {
-        if (j.id !== jobId) return j;
-        return { ...j, state };
-      })
-    );
-    const j = jobs.find(x => x.id === jobId);
-    if (j) logActivity(`${j.title} marked ${state}`);
-    showToast(`Job status updated to ${state}.`);
+  const updateJobState = async (jobId: string, state: JobOrder['state']): Promise<void> => {
+    const nextJobs = jobs.map(j => {
+      if (j.id !== jobId) return j;
+      return { ...j, state };
+    });
+    setJobs(nextJobs);
+    saveStorage('jobs', nextJobs);
+
+    try {
+      await fetch(`${NEON_ATS_API}/jobs`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: jobId,
+          state
+        })
+      });
+      const j = jobs.find(x => x.id === jobId);
+      if (j) logActivity(`${j.title} marked ${state}`);
+      showToast(`Job status updated to ${state}.`);
+    } catch (e) {
+      console.warn('[Neon Sync] Job state notice:', e);
+      showToast(`Job status updated to ${state} (local).`);
+    }
   };
 
   const addCandidateToPipeline = (candId: string, jobId: string) => {
@@ -1310,11 +1432,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clientToggleHold = (appId: string) => {
+    const target = applications.find(x => x.id === appId);
+    const newHold = !target?.hold;
     setApplications(prev =>
-      prev.map(a => (a.id === appId ? { ...a, hold: !a.hold } : a))
+      prev.map(a => (a.id === appId ? { ...a, hold: newHold } : a))
     );
-    const a = applications.find(x => x.id === appId);
-    showToast(a && a.hold ? 'Hold removed.' : 'Candidate put on hold.');
+    showToast(newHold ? 'Candidate put on hold.' : 'Hold removed.');
+
+    fetch(`${NEON_ATS_API}/applications`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: appId, isOnHold: newHold })
+    }).catch(e => console.warn('[Neon Sync] Toggle hold notice:', e));
   };
 
   const clientPass = (appId: string, reason: string) => {

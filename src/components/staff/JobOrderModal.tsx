@@ -61,7 +61,18 @@ export const JobOrderModal: React.FC = () => {
         </div>
       )}
 
-      <h3>Scorecard</h3>
+      <div className="row spread" style={{ alignItems: 'center', marginTop: '16px', marginBottom: '4px' }}>
+        <h3 style={{ margin: 0 }}>Scorecard</h3>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => openModal({ type: 'editjob', id: job.id })}
+          style={{ fontSize: '12px', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--red-text)' }}
+          title="Edit scorecard criteria, must-haves, and helpful skills"
+        >
+          <Edit2 size={13} /> Edit Scorecard & Rubric
+        </button>
+      </div>
       <p className="sm muted">
         Must-haves share 60 points. Helpful skills add the points shown. Experience adds up
         to 10 points.

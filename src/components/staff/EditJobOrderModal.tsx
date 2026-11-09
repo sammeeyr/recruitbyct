@@ -31,12 +31,17 @@ export const EditJobOrderModal: React.FC = () => {
   const [newMustLabel, setNewMustLabel] = useState('');
   const [newMustKeys, setNewMustKeys] = useState('');
   const [niceSkills, setNiceSkills] = useState<{ label: string; keys: string[]; w?: number }[]>(job.nice || []);
+  const [newNiceLabel, setNewNiceLabel] = useState('');
+  const [newNiceKeys, setNewNiceKeys] = useState('');
+  const [newNiceWeight, setNewNiceWeight] = useState(10);
   const [published, setPublished] = useState(job.listing.published);
   const [confidential, setConfidential] = useState(job.listing.confidential);
   const [showSalary, setShowSalary] = useState(job.listing.showSalary);
   const [state, setState] = useState(job.state);
 
   const [aiPolishing, setAiPolishing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // AI Polish & Enhance (AI Draft + Edit)
@@ -93,9 +98,25 @@ export const EditJobOrderModal: React.FC = () => {
     setMustSkills(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleAddNiceSkill = () => {
+    if (!newNiceLabel.trim() || !newNiceKeys.trim()) return;
+    const keysArray = newNiceKeys.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+    setNiceSkills(prev => [...prev, { label: newNiceLabel.trim(), keys: keysArray, w: Number(newNiceWeight) || 10 }]);
+    setNewNiceLabel('');
+    setNewNiceKeys('');
+    setNewNiceWeight(10);
+  };
+
+  const handleRemoveNiceSkill = (index: number) => {
+    setNiceSkills(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateJobOrder(job.id, {
+    setIsSaving(true);
+    setServerError(null);
+
+    const result = await updateJobOrder(job.id, {
       title: title.trim(),
       location,
       type,
@@ -115,7 +136,13 @@ export const EditJobOrderModal: React.FC = () => {
         showSalary
       }
     });
-    closeModal();
+
+    setIsSaving(false);
+    if (result.success) {
+      closeModal();
+    } else {
+      setServerError(result.error || 'Failed to save to Neon Serverless Postgres. Changes have been preserved locally.');
+    }
   };
 
   const handleDelete = () => {
@@ -356,6 +383,70 @@ export const EditJobOrderModal: React.FC = () => {
           </div>
         </div>
 
+        {/* Nice-to-Have Skills Section (Scorecard Bonus Points) */}
+        <div className="field">
+          <label>Helpful / Nice-to-Have Skills (Rubric Bonus Points)</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: '8px 0' }}>
+            {niceSkills.map((n, idx) => (
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  background: 'var(--surface-2)',
+                  borderRadius: '6px',
+                  fontSize: '13px'
+                }}
+              >
+                <div>
+                  <b>{n.label}</b>
+                  <span className="chip sm" style={{ marginLeft: '8px', background: 'var(--yellow-soft)', color: 'var(--yellow-text)' }}>
+                    +{n.w || 10} pts
+                  </span>
+                  <span className="muted xs" style={{ marginLeft: '8px' }}>
+                    Keywords: {n.keys.join(', ')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="iconbtn"
+                  onClick={() => handleRemoveNiceSkill(idx)}
+                  style={{ color: 'var(--red)' }}
+                  aria-label="Remove nice skill"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 0.6fr auto', gap: '8px' }}>
+            <input
+              type="text"
+              placeholder="Skill label (e.g. AWS or Docker)"
+              value={newNiceLabel}
+              onChange={e => setNewNiceLabel(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Keywords (e.g. aws, cloud)"
+              value={newNiceKeys}
+              onChange={e => setNewNiceKeys(e.target.value)}
+            />
+            <input
+              type="number"
+              placeholder="Points"
+              title="Bonus score points"
+              value={newNiceWeight}
+              onChange={e => setNewNiceWeight(Number(e.target.value))}
+            />
+            <button type="button" className="btn ghost sm" onClick={handleAddNiceSkill}>
+              <Plus size={14} /> Add
+            </button>
+          </div>
+        </div>
+
         {/* Public Listing Toggles */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--surface-2)', borderRadius: '8px' }}>
           <label className="check" style={{ fontSize: '13px' }}>
@@ -384,6 +475,39 @@ export const EditJobOrderModal: React.FC = () => {
           </label>
         </div>
 
+        {/* Server Error Notification Banner */}
+        {serverError && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              padding: '12px 14px',
+              background: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '8px',
+              margin: '10px 0'
+            }}
+          >
+            <AlertTriangle size={18} style={{ color: 'var(--red)', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ flex: 1, fontSize: '13px' }}>
+              <b style={{ color: 'var(--red)', display: 'block', marginBottom: '2px' }}>Database Sync Notice</b>
+              <p style={{ margin: 0, color: 'var(--ink)' }}>{serverError}</p>
+              <span className="xs muted" style={{ display: 'block', marginTop: '4px' }}>
+                Your edits are safely stored in your local browser cache. Click "Save Changes" again to retry syncing to Neon.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="linkbtn xs"
+              onClick={() => setServerError(null)}
+              style={{ color: 'var(--ink-muted)' }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Actions & Delete Confirmation */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
           {!showDeleteConfirm ? (
@@ -392,6 +516,7 @@ export const EditJobOrderModal: React.FC = () => {
               className="btn ghost sm"
               style={{ color: 'var(--red)' }}
               onClick={() => setShowDeleteConfirm(true)}
+              disabled={isSaving}
             >
               <Trash2 size={14} /> Delete Role
             </button>
@@ -403,6 +528,7 @@ export const EditJobOrderModal: React.FC = () => {
                 className="btn primary sm"
                 style={{ background: 'var(--red)' }}
                 onClick={handleDelete}
+                disabled={isSaving}
               >
                 Yes, Delete
               </button>
@@ -417,11 +543,17 @@ export const EditJobOrderModal: React.FC = () => {
           )}
 
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button type="button" className="btn ghost" onClick={closeModal}>
+            <button type="button" className="btn ghost" onClick={closeModal} disabled={isSaving}>
               Cancel
             </button>
-            <button type="submit" className="btn primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Save size={15} /> Save Changes
+            <button
+              type="submit"
+              className="btn primary"
+              disabled={isSaving}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Save size={15} />
+              {isSaving ? 'Saving to Database...' : 'Save Changes'}
             </button>
           </div>
         </div>

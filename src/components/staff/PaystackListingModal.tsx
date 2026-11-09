@@ -60,8 +60,8 @@ export const PaystackListingModal: React.FC = () => {
 
       const data = await res.json();
 
-      // Update local state to active and published
-      updateJobOrder(job.id, {
+      // Update local state and Neon database to active and published
+      await updateJobOrder(job.id, {
         state: 'open',
         approved: true,
         listingFeePaid: true,
