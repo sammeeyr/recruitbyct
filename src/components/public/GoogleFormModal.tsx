@@ -72,7 +72,7 @@ export const GoogleFormModal: React.FC = () => {
       </div>
 
       <p className="xs muted" style={{ marginTop: '14px' }}>
-        Prototype: the form link is configured by recruiters on the Intake page.
+        Official Integration: Google Form submissions are captured by serverless webhooks, logged to Google Sheets, and synced to Drive automatically.
       </p>
     </>
   );

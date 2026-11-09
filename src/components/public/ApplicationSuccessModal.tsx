@@ -83,7 +83,7 @@ export const ApplicationSuccessModal: React.FC = () => {
       )}
 
       <p className="sm muted" style={{ margin: '14px 0' }}>
-        In the live system this reference is also sent by email and WhatsApp.
+        A confirmation receipt with this reference number has been queued for delivery to your email and WhatsApp.
       </p>
 
       <div className="row">

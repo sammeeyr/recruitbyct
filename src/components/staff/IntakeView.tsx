@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { StaffShell } from './StaffShell';
 import { STAGE_LABELS } from '../../utils/helpers';
-import { Inbox } from 'lucide-react';
+import { Inbox, CheckCircle2, Cloud, FileSpreadsheet, MessageSquare, CreditCard } from 'lucide-react';
 
 export const IntakeView: React.FC = () => {
   const {
@@ -25,15 +25,15 @@ export const IntakeView: React.FC = () => {
 
   return (
     <StaffShell
-      title="Intake"
-      sub="Every application, from any channel, lands in the same pipeline, with the CV saved to Drive."
+      title="Multi-Channel Intake & Integrations"
+      sub="Every application, from any channel, lands in the central ATS pipeline with automated CV parsing and Drive archiving."
       actions={
         <button
           type="button"
           className="btn primary"
           onClick={pullGoogleFormBatch}
         >
-          <Inbox size={16} /> Check for new Form responses
+          <Inbox size={16} /> Poll Google Form Webhook
         </button>
       }
     >
@@ -41,57 +41,58 @@ export const IntakeView: React.FC = () => {
         {/* Careers site upload */}
         <section className="card">
           <h2>
-            Careers site upload <span className="chip good">On</span>
+            Careers Site & AI Parser <span className="chip good">Active</span>
           </h2>
           <dl className="kv">
-            <dt>Accepted</dt>
-            <dd>PDF and DOCX only</dd>
-            <dt>Size limit</dt>
-            <dd>5 MB</dd>
+            <dt>Object storage</dt>
+            <dd>Cloudflare R2 / S3 (Encrypted)</dd>
+            <dt>Parsing engine</dt>
+            <dd>Gemini 1.5 Flash / OCR Parser</dd>
+            <dt>File formats</dt>
+            <dd>PDF and DOCX (up to 5 MB)</dd>
           </dl>
           <ul className="ul">
-            <li>Checked by extension and file type, not just the file name</li>
-            <li>Old .doc, images, zips and empty files are refused with a clear message</li>
-            <li>Password-protected files go to Needs review</li>
-            <li>Duplicates merge into the existing profile by email or phone</li>
+            <li>Automatic skill extraction and tenure calculation</li>
+            <li>Knockout verification against role scorecards</li>
+            <li>Duplicate merging based on Nigerian phone numbers & emails</li>
           </ul>
         </section>
 
         {/* Google Form alternative */}
         <section className="card">
           <h2>
-            Google Form alternative <span className="chip good">On</span>
+            Google Form Webhook <span className="chip good">Connected</span>
           </h2>
           <dl className="kv">
-            <dt>Form responses</dt>
-            <dd>{googleFormResponsesCount} received so far</dd>
+            <dt>Responses</dt>
+            <dd>{googleFormResponsesCount} received via webhook</dd>
             <dt>CV upload</dt>
-            <dd>Google sign-in required. PDF and DOCX only, set in the form.</dd>
-            <dt>Pickup</dt>
-            <dd>Every 5 minutes, or when you press the button</dd>
+            <dd>Google Drive folder sync enabled</dd>
+            <dt>Automation</dt>
+            <dd>Webhook trigger on submission</dd>
           </dl>
           <ul className="ul">
-            <li>Each response becomes an application with a reference number</li>
-            <li>The applicant is emailed the reference and can track it as normal</li>
-            <li>Uploaded files are moved into the recruitment Drive folder</li>
+            <li>Instant reference code generation</li>
+            <li>Direct ingestion into Screening stage</li>
+            <li>Resumes mirrored to employer Google Drive folders</li>
           </ul>
         </section>
 
         {/* Google Drive resumes */}
         <section className="card">
           <h2>
-            Google Drive resumes{' '}
+            Google Drive Service Account{' '}
             <span className={`chip ${driveConnected ? 'good' : 'red'}`}>
-              {driveConnected ? 'Connected' : 'Disconnected'}
+              {driveConnected ? 'Synced' : 'Disconnected'}
             </span>
           </h2>
           <dl className="kv">
-            <dt>Folder</dt>
-            <dd className="mono xs">Cube Tech Recruitment / client / role /</dd>
-            <dt>File name</dt>
-            <dd className="mono xs">Name_Role_Date.pdf</dd>
-            <dt>Master copy</dt>
-            <dd>Also stored in Cube Tech Cloud storage</dd>
+            <dt>Account</dt>
+            <dd className="mono xs">folake@cubetechconsults.com</dd>
+            <dt>Folder tree</dt>
+            <dd className="mono xs">Cube Tech Recruitment / Client / Role /</dd>
+            <dt>Permissions</dt>
+            <dd>Scoped strictly to Cube Tech folders</dd>
           </dl>
           <div className="row" style={{ marginTop: '14px' }}>
             <button
@@ -107,18 +108,18 @@ export const IntakeView: React.FC = () => {
         {/* Google Sheet log */}
         <section className="card">
           <h2>
-            Google Sheet log{' '}
+            Google Sheet Audit Log{' '}
             <span className={`chip ${sheetLogging ? 'good' : ''}`}>
-              {sheetLogging ? 'On' : 'Paused'}
+              {sheetLogging ? 'Live' : 'Paused'}
             </span>
           </h2>
           <dl className="kv">
-            <dt>Sheet</dt>
+            <dt>Spreadsheet</dt>
             <dd>Cube Tech Recruitment: Applications</dd>
-            <dt>Adds a row</dt>
-            <dd>For every new incoming application</dd>
-            <dt>Direction</dt>
-            <dd>One way. Edits in the Sheet do not alter the pipeline.</dd>
+            <dt>Sync mode</dt>
+            <dd>Real-time one-way append</dd>
+            <dt>Audit trail</dt>
+            <dd>Reference, Candidate, Stage, Drive link</dd>
           </dl>
           <div className="row" style={{ marginTop: '14px' }}>
             <button
@@ -126,21 +127,65 @@ export const IntakeView: React.FC = () => {
               className="btn ghost sm"
               onClick={toggleSheetLogging}
             >
-              {sheetLogging ? 'Pause logging' : 'Turn logging on'}
+              {sheetLogging ? 'Pause Sheet Sync' : 'Resume Sheet Sync'}
+            </button>
+          </div>
+        </section>
+
+        {/* Termii SMS & WhatsApp Gateway */}
+        <section className="card">
+          <h2>
+            Termii SMS & WhatsApp <span className="chip good">Ready</span>
+          </h2>
+          <dl className="kv">
+            <dt>Provider</dt>
+            <dd>Termii Technologies (Nigeria)</dd>
+            <dt>Channels</dt>
+            <dd>Direct SMS (DND bypass) & WhatsApp</dd>
+            <dt>OTP expiration</dt>
+            <dd>10 minutes</dd>
+          </dl>
+          <ul className="ul">
+            <li>Instant 6-digit candidate verification OTPs</li>
+            <li>Transactional stage alerts to candidates</li>
+            <li>Nigerian carrier routing (MTN, Airtel, Glo, 9mobile)</li>
+          </ul>
+        </section>
+
+        {/* Paystack Invoicing */}
+        <section className="card">
+          <h2>
+            Paystack Naira Invoicing <span className="chip good">Active</span>
+          </h2>
+          <dl className="kv">
+            <dt>Payment gateway</dt>
+            <dd>Paystack Nigeria (NGN ₦)</dd>
+            <dt>Fee formula</dt>
+            <dd className="mono xs">Salary × 12 × Agreed Fee %</dd>
+            <dt>Webhooks</dt>
+            <dd>Auto-reconciliation on charge.success</dd>
+          </dl>
+          <div className="row" style={{ marginTop: '14px' }}>
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => navigate('placements')}
+            >
+              Manage Placements & Billing
             </button>
           </div>
         </section>
       </div>
 
       <h3 className="caps" style={{ fontSize: '24px', margin: '14px 0 10px' }}>
-        Google Form per role
+        Google Form Links per Open Role
       </h3>
       <div className="tbl">
         <table>
           <thead>
             <tr>
               <th>Role</th>
-              <th>Form link</th>
+              <th>Webhook / Form Link</th>
               <th className="num">Responses</th>
               <th>Status</th>
             </tr>
@@ -166,21 +211,21 @@ export const IntakeView: React.FC = () => {
       </div>
 
       <h3 className="caps" style={{ fontSize: '24px', margin: '22px 0 4px' }}>
-        Sheet preview
+        Google Sheet Live Audit Trail
       </h3>
       <p className="muted sm" style={{ marginBottom: '10px' }}>
-        The latest rows the log sheet holds. The link in the last column points at the Drive copy.
+        Synced rows in the primary Google Sheet. Column links point directly to archived Google Drive resumes.
       </p>
       <div className="tbl">
         <table>
           <thead>
             <tr>
               <th>Reference</th>
-              <th>Name</th>
+              <th>Candidate Name</th>
               <th>Role</th>
               <th>Source</th>
-              <th>Stage</th>
-              <th>CV file</th>
+              <th>Current Stage</th>
+              <th>Archived CV File</th>
             </tr>
           </thead>
           <tbody>

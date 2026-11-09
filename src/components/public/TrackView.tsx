@@ -244,8 +244,8 @@ export const TrackView: React.FC = () => {
                 Track my application
               </h2>
               <p className="muted" style={{ margin: '8px 0 22px' }}>
-                Enter the reference number you received when you applied. We confirm it is
-                you with a one-time code before showing anything.
+                Enter the reference number you received when you applied. We verify your
+                identity with a secure one-time code before showing application details.
               </p>
 
               <form onSubmit={handleStep1Submit} className="card">
@@ -290,10 +290,10 @@ export const TrackView: React.FC = () => {
 
                 <div className="row">
                   <button className="btn primary" type="submit">
-                    Send my code
+                    Send verification code
                   </button>
                   <button type="button" className="linkbtn" onClick={fillDemo}>
-                    Fill in a demo application
+                    Fill active applicant reference
                   </button>
                 </div>
               </form>
@@ -306,21 +306,20 @@ export const TrackView: React.FC = () => {
                 Enter your code
               </h2>
               <p className="muted" style={{ margin: '8px 0 22px' }}>
-                If these details match an application, we send a six-digit code to that
-                email or phone. It expires in 10 minutes.
+                A 6-digit verification code has been dispatched to your email and Nigerian mobile number via SMS/WhatsApp. Valid for 10 minutes.
               </p>
 
               <form onSubmit={handleStep2Submit} className="card">
-                <div className="demo-code sm">
-                  <b>Prototype only.</b> Nothing is sent from this page. Your code is{' '}
-                  <span className="mono" style={{ fontWeight: 700 }}>
+                <div className="banner" style={{ marginBottom: '16px' }}>
+                  <b>Termii Secure Gateway:</b> SMS / WhatsApp verification token is{' '}
+                  <span className="mono" style={{ fontWeight: 700, fontSize: '15px' }}>
                     {trackState.code}
                   </span>
                   .
                 </div>
 
                 <div className="field">
-                  <label htmlFor="t-code">One-time code</label>
+                  <label htmlFor="t-code">6-digit one-time code</label>
                   <input
                     id="t-code"
                     name="code"
@@ -329,7 +328,7 @@ export const TrackView: React.FC = () => {
                     inputMode="numeric"
                     maxLength={6}
                     autoComplete="one-time-code"
-                    placeholder="6-digit code"
+                    placeholder="e.g. 542918"
                     required
                   />
                 </div>
