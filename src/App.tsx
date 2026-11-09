@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from './context/AppContext';
+import { useAuth } from './context/AuthContext';
 import { Toast } from './components/common/Toast';
 import { ModalContainer } from './components/common/ModalContainer';
 
@@ -7,6 +8,7 @@ import { ModalContainer } from './components/common/ModalContainer';
 import { CareersView } from './components/public/CareersView';
 import { TrackView } from './components/public/TrackView';
 import { RecruiterOnboardingView } from './components/recruiter/RecruiterOnboardingView';
+import { RecruiterLoginView } from './components/recruiter/RecruiterLoginView';
 
 // Staff views
 import { DashboardView } from './components/staff/DashboardView';
@@ -23,6 +25,7 @@ import { ClientPortalView } from './components/client/ClientPortalView';
 
 export const AppContent: React.FC = () => {
   const { view } = useApp();
+  const { canAccessAts } = useAuth();
 
   const renderActiveView = () => {
     switch (view) {
@@ -32,22 +35,24 @@ export const AppContent: React.FC = () => {
         return <TrackView />;
       case 'onboard':
         return <RecruiterOnboardingView />;
+      case 'login':
+        return <RecruiterLoginView />;
       case 'dashboard':
-        return <DashboardView />;
+        return canAccessAts ? <DashboardView /> : <RecruiterLoginView />;
       case 'pipeline':
-        return <PipelineView />;
+        return canAccessAts ? <PipelineView /> : <RecruiterLoginView />;
       case 'pool':
-        return <TalentPoolView />;
+        return canAccessAts ? <TalentPoolView /> : <RecruiterLoginView />;
       case 'job-orders':
-        return <JobOrdersView />;
+        return canAccessAts ? <JobOrdersView /> : <RecruiterLoginView />;
       case 'clients':
-        return <ClientsView />;
+        return canAccessAts ? <ClientsView /> : <RecruiterLoginView />;
       case 'placements':
-        return <PlacementsView />;
+        return canAccessAts ? <PlacementsView /> : <RecruiterLoginView />;
       case 'intake':
-        return <IntakeView />;
+        return canAccessAts ? <IntakeView /> : <RecruiterLoginView />;
       case 'drive-sync':
-        return <DriveSyncView />;
+        return canAccessAts ? <DriveSyncView /> : <RecruiterLoginView />;
       case 'client-portal':
         return <ClientPortalView />;
       default:

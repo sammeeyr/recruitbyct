@@ -211,6 +211,22 @@ export const apiClient = {
       }
     },
 
+    async recruiterLogin(email: string, password?: string) {
+      try {
+        const res = await fetch(`${this.atsUrl}/auth/recruiter-login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        return await res.json();
+      } catch (err: any) {
+        return {
+          status: 'error',
+          error: err.message || 'Failed to authenticate recruiter'
+        };
+      }
+    },
+
     async runGuaranteeAudit() {
       try {
         const res = await fetch(this.guaranteeUrl, { method: 'POST' });

@@ -573,6 +573,126 @@ export default async function handler(req: Request): Promise<Response> {
       );
     }
 
+    // 8b. POST /auth/recruiter-login - Recruiter Access Authentication
+    if (path === "/auth/recruiter-login" && method === "POST") {
+      const body = await req.json();
+      const { email } = body;
+
+      if (!email) {
+        return Response.json(
+          { error: "Email is required for recruiter sign in." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const cleanEmail = String(email).trim().toLowerCase();
+
+      // Check in recruiter_agents database table
+      const [recruiter] = await sql`
+        SELECT 
+          id, full_name, agency_name, email, phone, location, specialization, 
+          status, agreed_terms, total_listings_posted, bank_name, created_at
+        FROM recruiter_agents
+        WHERE LOWER(email) = ${cleanEmail}
+        LIMIT 1;
+      `;
+
+      if (recruiter) {
+        if (recruiter.status === 'suspended') {
+          return Response.json(
+            { error: "Your recruiter account is currently suspended. Please contact recruitment@cubetechconsults.com." },
+            { status: 403, headers: corsHeaders }
+          );
+        }
+
+        const sessionToken = `ctc_recruiter_${recruiter.id.slice(0, 8)}_${Date.now()}`;
+        
+        await sql`
+          INSERT INTO activity_logs (event, message, metadata)
+          VALUES (
+            'recruiter_login',
+            ${`Recruiter logged in: ${recruiter.full_name} (${recruiter.email})`},
+            ${JSON.stringify({ recruiterId: recruiter.id, email: recruiter.email, at: new Date().toISOString() })}
+          )
+        `;
+
+        return Response.json(
+          {
+            status: "success",
+            message: "Recruiter authenticated successfully.",
+            sessionToken,
+            recruiter: {
+              id: recruiter.id,
+              name: recruiter.full_name,
+              email: recruiter.email,
+              role: "recruiter",
+              agencyName: recruiter.agency_name,
+              location: recruiter.location,
+              phone: recruiter.phone,
+              specialization: recruiter.specialization,
+              totalListingsPosted: Number(recruiter.total_listings_posted || 0)
+            }
+          },
+          { headers: corsHeaders }
+        );
+      }
+
+      // Check built-in system recruiter accounts
+      if (cleanEmail === 'folake@cubetechconsults.com' || cleanEmail === 'recruiter@cubetechconsults.com') {
+        const sessionToken = `ctc_recruiter_folake_${Date.now()}`;
+        return Response.json(
+          {
+            status: "success",
+            message: "Recruiter authenticated successfully.",
+            sessionToken,
+            recruiter: {
+              id: "u_recruiter",
+              name: "Folake Adeyemi",
+              email: cleanEmail,
+              role: "recruiter",
+              agencyName: "Cube Tech Consults HQ",
+              location: "Abuja",
+              phone: "0803 555 0199",
+              specialization: "Customer Excellence & Technology",
+              totalListingsPosted: 12
+            }
+          },
+          { headers: corsHeaders }
+        );
+      }
+
+      if (cleanEmail === 'tunde@cubetechconsults.com' || cleanEmail === 'admin@cubetechconsults.com') {
+        const sessionToken = `ctc_admin_tunde_${Date.now()}`;
+        return Response.json(
+          {
+            status: "success",
+            message: "Agency Admin authenticated successfully.",
+            sessionToken,
+            recruiter: {
+              id: "u_admin",
+              name: "Tunde Balogun",
+              email: cleanEmail,
+              role: "agency_admin",
+              agencyName: "Cube Tech Consults Management",
+              location: "Lagos",
+              phone: "0802 333 4455",
+              specialization: "Executive Search & BPO Management",
+              totalListingsPosted: 34
+            }
+          },
+          { headers: corsHeaders }
+        );
+      }
+
+      return Response.json(
+        {
+          error: `No recruiter account found for '${email}'. Please complete self-onboarding at /onboard to partner with Cube Tech Consults.`,
+          unregistered: true
+        },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
     // 9. GET /recruiters - List Registered Recruiter Agents
     if (path === "/recruiters" && method === "GET") {
       const agents = await sql`

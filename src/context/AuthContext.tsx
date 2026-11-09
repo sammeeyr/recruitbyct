@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Permission, ROLE_PERMISSIONS, UserRole, UserSession } from '../types/auth';
+import { apiClient } from '../services/apiClient';
 
 export const SYSTEM_USERS: UserSession[] = [
   {
@@ -63,6 +64,9 @@ interface AuthContextType {
   allUsers: UserSession[];
   setUser: (user: UserSession) => void;
   switchUser: (userId: string) => void;
+  loginRecruiter: (email: string, password?: string) => Promise<{ success: boolean; error?: string; recruiter?: any }>;
+  logout: () => void;
+  isAuthenticated: boolean;
   hasPermission: (permission: Permission) => boolean;
   canAccessAts: boolean;
   canAccessClientPortal: boolean;
@@ -81,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return JSON.parse(saved);
       }
     } catch {}
-    // Default to Recruiter
+    // Default to senior recruiter session
     return SYSTEM_USERS[0];
   });
 
@@ -99,6 +103,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginRecruiter = async (email: string, password?: string) => {
+    try {
+      const res = await apiClient.neonFunctions.recruiterLogin(email, password);
+      if (res.status === 'success' && res.recruiter) {
+        const r = res.recruiter;
+        const newSession: UserSession = {
+          id: r.id || `u_${Date.now()}`,
+          name: r.name || r.fullName || 'Recruiter Partner',
+          email: r.email,
+          role: (r.role as UserRole) || 'recruiter',
+          title: r.agencyName ? `Recruiter (${r.agencyName})` : 'Recruiter Partner',
+          location: r.location || 'Abuja',
+          phone: r.phone || '',
+          token: res.sessionToken || `jwt_recruiter_${Date.now()}`
+        };
+        setUser(newSession);
+        return { success: true, recruiter: r };
+      }
+      return { success: false, error: res.error || 'Failed to authenticate recruiter.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error logging in.' };
+    }
+  };
+
+  const logout = () => {
+    const guestUser: UserSession = {
+      id: 'u_guest',
+      name: 'Guest Recruiter',
+      email: '',
+      role: 'candidate',
+      title: 'Guest',
+      location: 'Abuja'
+    };
+    setUser(guestUser);
+  };
+
+  const isAuthenticated = user.role === 'recruiter' || user.role === 'agency_admin';
+
   const hasPermission = (permission: Permission): boolean => {
     const userPermissions = ROLE_PERMISSIONS[user.role] || [];
     return userPermissions.includes(permission);
@@ -115,6 +157,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         allUsers: SYSTEM_USERS,
         setUser,
         switchUser,
+        loginRecruiter,
+        logout,
+        isAuthenticated,
         hasPermission,
         canAccessAts,
         canAccessClientPortal,

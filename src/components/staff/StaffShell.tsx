@@ -16,7 +16,8 @@ import {
   Moon,
   ExternalLink,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  LogOut
 } from 'lucide-react';
 
 interface StaffShellProps {
@@ -33,7 +34,7 @@ export const StaffShell: React.FC<StaffShellProps> = ({
   children
 }) => {
   const { view, navigate, approvals, driveConnected, theme, toggleTheme, setSurface, setSelectedClientId } = useApp();
-  const { user, allUsers, switchUser } = useAuth();
+  const { user, allUsers, switchUser, logout } = useAuth();
 
   const navItems: [View, React.ReactNode, string][] = [
     ['dashboard', <Home size={18} key="d" />, 'Dashboard'],
@@ -178,22 +179,37 @@ export const StaffShell: React.FC<StaffShellProps> = ({
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #2E2E33' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #2E2E33' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="linkbtn xs"
+                onClick={() => navigate('careers')}
+                style={{ color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '3px' }}
+              >
+                Careers <ExternalLink size={10} />
+              </button>
+              <button
+                type="button"
+                className="linkbtn xs"
+                onClick={() => navigate('client-portal')}
+                style={{ color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '3px' }}
+              >
+                Portal <ExternalLink size={10} />
+              </button>
+            </div>
+
             <button
               type="button"
               className="linkbtn xs"
-              onClick={() => navigate('careers')}
-              style={{ color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '3px' }}
+              onClick={() => {
+                logout();
+                navigate('login');
+              }}
+              style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}
+              title="Sign out of Recruiter Session"
             >
-              Careers <ExternalLink size={10} />
-            </button>
-            <button
-              type="button"
-              className="linkbtn xs"
-              onClick={() => navigate('client-portal')}
-              style={{ color: '#A1A1AA', display: 'flex', alignItems: 'center', gap: '3px' }}
-            >
-              Portal <ExternalLink size={10} />
+              Sign out <LogOut size={10} />
             </button>
           </div>
         </div>

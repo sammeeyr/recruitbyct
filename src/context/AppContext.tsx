@@ -150,6 +150,7 @@ export function pathToView(pathname: string): View {
   if (clean === '/' || clean === '/careers') return 'careers';
   if (clean === '/careers/track' || clean === '/track') return 'track';
   if (clean === '/onboard' || clean === '/recruiter-onboarding' || clean === '/join') return 'onboard';
+  if (clean === '/login' || clean === '/signin' || clean === '/recruiter/login') return 'login';
   if (clean === '/portal' || clean === '/client' || clean === '/portal/candidates') return 'client-portal';
   if (clean === '/dashboard') return 'dashboard';
   if (clean === '/dashboard/pipeline' || clean === '/pipeline') return 'pipeline';
@@ -170,6 +171,8 @@ export function viewToPath(view: View): string {
       return '/careers/track';
     case 'onboard':
       return '/onboard';
+    case 'login':
+      return '/login';
     case 'dashboard':
       return '/dashboard';
     case 'pipeline':
@@ -203,6 +206,7 @@ const VIEW_SURFACE_MAP: Record<View, Surface> = {
   careers: 'public',
   track: 'public',
   onboard: 'public',
+  login: 'public',
   dashboard: 'staff',
   pipeline: 'staff',
   pool: 'staff',

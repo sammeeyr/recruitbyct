@@ -1,10 +1,12 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { Logo } from '../common/Logo';
-import { Sun, Moon, ArrowRight } from 'lucide-react';
+import { Sun, Moon, ArrowRight, Lock, LayoutDashboard } from 'lucide-react';
 
 export const PublicHeader: React.FC = () => {
   const { view, navigate, theme, toggleTheme } = useApp();
+  const { canAccessAts, user } = useAuth();
 
   return (
     <header className="hdr gut" style={{ position: 'sticky', top: 0, zIndex: 40, backdropFilter: 'blur(12px)' }}>
@@ -58,14 +60,25 @@ export const PublicHeader: React.FC = () => {
 
           <div style={{ width: '1px', height: '18px', background: 'var(--line)', margin: '0 4px' }} />
 
-          <button
-            type="button"
-            onClick={() => navigate('dashboard')}
-            className="btn ghost sm"
-            style={{ fontSize: '13px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
-          >
-            Recruiter ATS <ArrowRight size={13} />
-          </button>
+          {canAccessAts ? (
+            <button
+              type="button"
+              onClick={() => navigate('dashboard')}
+              className="btn ghost sm"
+              style={{ fontSize: '13px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+            >
+              <LayoutDashboard size={13} /> Recruiter ATS <ArrowRight size={13} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => navigate('login')}
+              className="btn primary sm"
+              style={{ fontSize: '13px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+            >
+              <Lock size={13} /> Recruiter Sign In
+            </button>
+          )}
 
           <button
             type="button"

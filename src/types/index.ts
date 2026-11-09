@@ -17,6 +17,7 @@ export type View =
   | 'careers'
   | 'track'
   | 'onboard'
+  | 'login'
   | 'dashboard'
   | 'pipeline'
   | 'pool'
