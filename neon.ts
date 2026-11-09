@@ -1,23 +1,27 @@
 import { defineConfig } from "@neon/config/v1";
 
 export default defineConfig({
-  // Declare your Neon services here
   auth: false,
   functions: {
-    hello: { name: "Hello World", source: "./hello.ts" },
+    paystack: {
+      name: "Paystack Listing Webhook",
+      source: "./functions/paystack.ts",
+      env: {
+        PAYSTACK_SECRET_KEY: {
+          value: process.env.PAYSTACK_SECRET_KEY,
+          required: false,
+        },
+      },
+    },
   },
   // Branch policy: per-branch tuning
   branch: (branch) => {
     if (branch.isDefault) {
-      // Default branch: no overrides, uses project defaults
       return {};
     }
     if (!branch.exists) {
-      // New non-default branches: auto-expire
-      // Run `neon checkout <name>` to create a new branch with these settings
       return { ttl: "7d" };
     }
-    // Existing branch: no changes
     return {};
   },
 });
