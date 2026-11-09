@@ -46,12 +46,13 @@ export const RecruiterLoginView: React.FC = () => {
     }
   };
 
-  const handleQuickDemoLogin = async (demoEmail: string) => {
+  const handleQuickDemoLogin = async (demoEmail: string, demoPassword?: string) => {
     setEmail(demoEmail);
-    setPassword('••••••••');
+    const pass = demoPassword || 'Password123!';
+    setPassword(pass);
     setLoading(true);
     setErrorMsg('');
-    const result = await loginRecruiter(demoEmail, 'demo_pass');
+    const result = await loginRecruiter(demoEmail, pass);
     setLoading(false);
 
     if (result.success) {
@@ -274,8 +275,28 @@ export const RecruiterLoginView: React.FC = () => {
           {/* Quick Demo Recruiter Accounts */}
           <div style={{ marginTop: '24px', paddingTop: '18px', borderTop: '1px solid var(--line)' }}>
             <span className="xs muted" style={{ display: 'block', marginBottom: '8px', textAlign: 'center' }}>
-              Quick Demo Login:
+              Quick Credentials & Access:
             </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px', marginBottom: '8px' }}>
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => handleQuickDemoLogin('infocubetech1@gmail.com', 'Password123!')}
+                style={{
+                  fontSize: '11px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  backgroundColor: 'rgba(255, 204, 0, 0.12)',
+                  border: '1px solid rgba(255, 204, 0, 0.35)',
+                  color: 'var(--yellow-text, #fef08a)',
+                  fontWeight: 600
+                }}
+              >
+                <ShieldCheck size={13} /> Admin: infocubetech1@gmail.com (Password123!)
+              </button>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <button
                 type="button"

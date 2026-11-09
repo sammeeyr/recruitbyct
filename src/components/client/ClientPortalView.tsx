@@ -11,7 +11,7 @@ import {
   STAGE_LABELS
 } from '../../utils/helpers';
 import { Application } from '../../types';
-import { Lock, Sun, Moon, ArrowLeft } from 'lucide-react';
+import { Lock, Sun, Moon, ArrowLeft, Sparkles } from 'lucide-react';
 import { KNOCKOUT_QUESTIONS } from '../../data/mockData';
 
 export const ClientPortalView: React.FC = () => {
@@ -91,6 +91,42 @@ export const ClientPortalView: React.FC = () => {
         </div>
 
         <p style={{ margin: '12px 0' }}>{candidateNote}</p>
+
+        {app.aiInterview?.status === 'completed' && (
+          <div
+            style={{
+              padding: '10px 14px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(255, 204, 0, 0.08)',
+              border: '1px solid rgba(255, 204, 0, 0.25)',
+              margin: '12px 0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px'
+            }}
+          >
+            <div className="row spread" style={{ alignItems: 'center' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  color: 'var(--yellow-text, #fef08a)'
+                }}
+              >
+                <Sparkles size={14} /> AI Interview Screened: {app.aiInterview.overallScore}% ({app.aiInterview.recommendation})
+              </span>
+              <span className="xs muted">Automated Technical & Behavioral Pre-Screen</span>
+            </div>
+            {app.aiInterview.summary && (
+              <p className="xs muted" style={{ margin: 0, lineHeight: 1.4 }}>
+                <b>Executive Synthesis:</b> {app.aiInterview.summary}
+              </p>
+            )}
+          </div>
+        )}
 
         {isRevealed ? (
           <dl className="kv" style={{ margin: '12px 0' }}>

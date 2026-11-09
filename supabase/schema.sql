@@ -157,3 +157,55 @@ FROM applications a
 JOIN candidates c ON a.candidate_id = c.id
 JOIN job_orders j ON a.job_id = j.id
 WHERE a.stage IN ('submitted', 'interview', 'offer', 'placed');
+
+-- 10. ROLES & AUTHENTICATED APP USERS
+CREATE TABLE IF NOT EXISTS roles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(50) UNIQUE NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO roles (name, display_name, description) VALUES
+('agency_admin', 'Agency Administrator', 'Full platform administrative control, recruiter approvals, financial ledgers, audit logs, and integrations.'),
+('admin', 'Platform Administrator', 'Administrative control over jobs, candidate pipelines, placements, and screening evaluations.'),
+('recruiter', 'Recruiter Partner', 'Access to recruiter dashboard, job listings, candidate pipelines, resume batch screening, and AI interviews.'),
+('client', 'Corporate Client Employer', 'Blind recruitment feed, candidate review, interview requests, and job offer workflows.'),
+('candidate', 'Job Candidate', 'Careers portal exploration, job application submissions, and AI interview completion.')
+ON CONFLICT (name) DO UPDATE SET 
+    display_name = EXCLUDED.display_name,
+    description = EXCLUDED.description;
+
+CREATE TABLE IF NOT EXISTS app_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL REFERENCES roles(name) ON DELETE RESTRICT,
+    phone VARCHAR(64),
+    status VARCHAR(32) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'pending')),
+    is_super_admin BOOLEAN NOT NULL DEFAULT FALSE,
+    last_login_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Seed Administrator Account: infocubetech1@gmail.com:Password123!
+INSERT INTO app_users (email, password_hash, full_name, role, phone, status, is_super_admin)
+VALUES (
+    'infocubetech1@gmail.com',
+    crypt('Password123!', gen_salt('bf')),
+    'Cube Tech Administrator',
+    'agency_admin',
+    '+234 803 000 0001',
+    'active',
+    TRUE
+)
+ON CONFLICT (email) DO UPDATE SET
+    password_hash = crypt('Password123!', gen_salt('bf')),
+    role = 'agency_admin',
+    status = 'active',
+    is_super_admin = TRUE,
+    updated_at = NOW();
+

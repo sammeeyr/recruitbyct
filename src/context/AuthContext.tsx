@@ -4,6 +4,16 @@ import { apiClient } from '../services/apiClient';
 
 export const SYSTEM_USERS: UserSession[] = [
   {
+    id: 'u_super_admin',
+    name: 'Cube Tech Administrator',
+    email: 'infocubetech1@gmail.com',
+    role: 'agency_admin',
+    title: 'Super Administrator',
+    location: 'Abuja / Lagos',
+    phone: '+234 803 000 0001',
+    token: 'jwt_admin_infocubetech1_2026'
+  },
+  {
     id: 'u_recruiter',
     name: 'Folake Adeyemi',
     email: 'folake@cubetechconsults.com',
@@ -139,15 +149,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(guestUser);
   };
 
-  const isAuthenticated = user.role === 'recruiter' || user.role === 'agency_admin';
+  const isAuthenticated = user.role === 'recruiter' || user.role === 'agency_admin' || user.role === 'admin';
 
   const hasPermission = (permission: Permission): boolean => {
     const userPermissions = ROLE_PERMISSIONS[user.role] || [];
     return userPermissions.includes(permission);
   };
 
-  const canAccessAts = user.role === 'recruiter' || user.role === 'agency_admin';
-  const canAccessClientPortal = user.role === 'client' || user.role === 'recruiter' || user.role === 'agency_admin';
+  const canAccessAts = user.role === 'recruiter' || user.role === 'agency_admin' || user.role === 'admin';
+  const canAccessClientPortal = user.role === 'client' || user.role === 'recruiter' || user.role === 'agency_admin' || user.role === 'admin';
   const canAccessPublic = true;
 
   return (

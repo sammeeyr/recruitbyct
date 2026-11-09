@@ -1,4 +1,4 @@
-export type UserRole = 'candidate' | 'recruiter' | 'agency_admin' | 'client';
+export type UserRole = 'candidate' | 'recruiter' | 'agency_admin' | 'admin' | 'client';
 
 export type Permission =
   | 'view_careers'
@@ -39,6 +39,18 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view_blind_feed',
     'reveal_candidate',
     'manage_invoices'
+  ],
+  admin: [
+    'view_careers',
+    'view_ats',
+    'move_candidate',
+    'draft_scorecard',
+    'approve_scorecard',
+    'view_blind_feed',
+    'reveal_candidate',
+    'manage_invoices',
+    'configure_integrations',
+    'override_fees'
   ],
   agency_admin: [
     'view_careers',
