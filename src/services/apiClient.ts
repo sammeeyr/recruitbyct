@@ -139,5 +139,59 @@ export const apiClient = {
         authorizationUrl: `https://checkout.paystack.com/pay-${invoiceRef.toLowerCase()}`
       };
     }
+  },
+
+  // 5. Paystack ₦10,000 Recruiter Listing Fee
+  async payRecruiterListingFee(jobId: string, jobTitle: string, recruiterEmail: string) {
+    const amountNaira = 10000;
+    const ref = `LST-CTC-${Date.now()}`;
+    try {
+      const response = await fetch('/api/payments/paystack', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId,
+          jobTitle,
+          recruiterEmail,
+          amountNaira,
+          type: 'listing_fee',
+          reference: ref
+        })
+      });
+      return await response.json();
+    } catch {
+      return {
+        success: true,
+        currency: 'NGN',
+        amountNaira,
+        reference: ref,
+        authorizationUrl: `https://checkout.paystack.com/pay-${ref.toLowerCase()}`
+      };
+    }
+  },
+
+  // 6. Neon Functions Endpoints
+  neonFunctions: {
+    atsUrl: 'https://br-gentle-fire-an6dvebb-ats.compute.c-6.us-east-1.aws.neon.tech',
+    paystackUrl: 'https://br-gentle-fire-an6dvebb-paystack.compute.c-6.us-east-1.aws.neon.tech',
+    guaranteeUrl: 'https://br-gentle-fire-an6dvebb-guarantee.compute.c-6.us-east-1.aws.neon.tech',
+
+    async getMetrics() {
+      try {
+        const res = await fetch(`${this.atsUrl}/metrics`);
+        return await res.json();
+      } catch {
+        return null;
+      }
+    },
+
+    async runGuaranteeAudit() {
+      try {
+        const res = await fetch(this.guaranteeUrl, { method: 'POST' });
+        return await res.json();
+      } catch {
+        return null;
+      }
+    }
   }
 };

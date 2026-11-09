@@ -46,7 +46,7 @@ export const StaffShell: React.FC<StaffShellProps> = ({
       <aside className="side">
         <a
           className="brand onblack"
-          href="#dashboard"
+          href="/dashboard"
           onClick={e => {
             e.preventDefault();
             navigate('dashboard');

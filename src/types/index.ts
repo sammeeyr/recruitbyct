@@ -67,6 +67,10 @@ export interface JobOrder {
   duties: string[];
   must: CriterionKey[];
   nice: CriterionKey[];
+  listingFeePaid?: boolean;
+  listingFeeAmount?: number;
+  listingFeeRef?: string;
+  recruiterEmail?: string;
 }
 
 export interface Candidate {

@@ -233,35 +233,44 @@ export const ClientPortalView: React.FC = () => {
             anonymized until you request an interview.
           </p>
 
-          {clientJobs.map(j => {
-            const submittedCandidates = applications.filter(
-              a =>
-                a.jobId === j.id &&
-                ['submitted', 'interview', 'offer', 'placed'].includes(a.stage)
-            );
+          {clientJobs.length > 0 ? (
+            clientJobs.map(j => {
+              const submittedCandidates = applications.filter(
+                a =>
+                  a.jobId === j.id &&
+                  ['submitted', 'interview', 'offer', 'placed'].includes(a.stage)
+              );
 
-            return (
-              <section key={j.id} style={{ marginTop: '36px' }}>
-                <div className="row spread" style={{ margin: '22px 0 12px' }}>
-                  <h2 className="caps" style={{ fontSize: '28px' }}>
-                    {j.title}
-                  </h2>
-                  <StatusChip status={getJobStatus(j)} />
-                </div>
+              return (
+                <section key={j.id} style={{ marginTop: '36px' }}>
+                  <div className="row spread" style={{ margin: '22px 0 12px' }}>
+                    <h2 className="caps" style={{ fontSize: '28px' }}>
+                      {j.title}
+                    </h2>
+                    <StatusChip status={getJobStatus(j)} />
+                  </div>
 
-                {submittedCandidates.length > 0 ? (
-                  <div className="pack">
-                    {submittedCandidates.map(app => renderCandidateCard(app))}
-                  </div>
-                ) : (
-                  <div className="empty">
-                    No candidates submitted yet. Your recruiter sends a shortlist once
-                    qualifications are confirmed.
-                  </div>
-                )}
-              </section>
-            );
-          })}
+                  {submittedCandidates.length > 0 ? (
+                    <div className="pack">
+                      {submittedCandidates.map(app => renderCandidateCard(app))}
+                    </div>
+                  ) : (
+                    <div className="empty">
+                      No candidates submitted yet. Your recruiter sends a shortlist once
+                      qualifications are confirmed.
+                    </div>
+                  )}
+                </section>
+              );
+            })
+          ) : (
+            <div className="empty" style={{ marginTop: '24px' }}>
+              <b>No active roles assigned to this client yet.</b>
+              <p style={{ marginTop: '6px' }}>
+                Your recruitment team at Cube Tech Consults will publish openings here as they are scoped.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

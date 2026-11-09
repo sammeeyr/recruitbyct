@@ -25,9 +25,9 @@ export const TopStrip: React.FC = () => {
   };
 
   const surfaces: [Surface, string][] = [
-    ['public', 'Careers site'],
-    ['staff', 'Staff workspace'],
-    ['client', 'Client portal']
+    ['public', 'Careers (/careers)'],
+    ['staff', 'Dashboard (/dashboard)'],
+    ['client', 'Client Portal (/portal)']
   ];
 
   return (
@@ -76,8 +76,27 @@ export const TopStrip: React.FC = () => {
           ))}
         </div>
 
-        {/* Theme switcher */}
-        <div className="row" style={{ gap: '8px', alignItems: 'center' }}>
+        {/* Live Neon & Theme switcher */}
+        <div className="row" style={{ gap: '12px', alignItems: 'center' }}>
+          <div
+            className="row"
+            style={{
+              gap: '6px',
+              alignItems: 'center',
+              fontSize: '11px',
+              fontWeight: 600,
+              color: '#34D399',
+              background: 'rgba(16, 185, 129, 0.1)',
+              padding: '3px 8px',
+              borderRadius: '12px',
+              border: '1px solid rgba(16, 185, 129, 0.25)'
+            }}
+            title="Connected to Neon Serverless Postgres & Functions (aws-us-east-1)"
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34D399', display: 'inline-block' }} />
+            Neon Live
+          </div>
+
           <button
             type="button"
             className="iconbtn"

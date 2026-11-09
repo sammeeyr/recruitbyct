@@ -140,6 +140,51 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+export function pathToView(pathname: string): View {
+  const clean = pathname.toLowerCase().replace(/\/+$/, '') || '/';
+  if (clean === '/' || clean === '/careers') return 'careers';
+  if (clean === '/careers/track' || clean === '/track') return 'track';
+  if (clean === '/portal' || clean === '/client' || clean === '/portal/candidates') return 'client-portal';
+  if (clean === '/dashboard') return 'dashboard';
+  if (clean === '/dashboard/pipeline' || clean === '/pipeline') return 'pipeline';
+  if (clean === '/dashboard/pool' || clean === '/pool') return 'pool';
+  if (clean === '/dashboard/jobs' || clean === '/job-orders') return 'job-orders';
+  if (clean === '/dashboard/clients' || clean === '/clients') return 'clients';
+  if (clean === '/dashboard/placements' || clean === '/placements') return 'placements';
+  if (clean === '/dashboard/intake' || clean === '/intake') return 'intake';
+  if (clean === '/dashboard/drive-sync' || clean === '/drive-sync') return 'drive-sync';
+  return 'careers';
+}
+
+export function viewToPath(view: View): string {
+  switch (view) {
+    case 'careers':
+      return '/careers';
+    case 'track':
+      return '/careers/track';
+    case 'dashboard':
+      return '/dashboard';
+    case 'pipeline':
+      return '/dashboard/pipeline';
+    case 'pool':
+      return '/dashboard/pool';
+    case 'job-orders':
+      return '/dashboard/jobs';
+    case 'clients':
+      return '/dashboard/clients';
+    case 'placements':
+      return '/dashboard/placements';
+    case 'intake':
+      return '/dashboard/intake';
+    case 'drive-sync':
+      return '/dashboard/drive-sync';
+    case 'client-portal':
+      return '/portal';
+    default:
+      return '/careers';
+  }
+}
+
 const SURFACE_HOME: Record<Surface, View> = {
   public: 'careers',
   staff: 'dashboard',
@@ -160,11 +205,12 @@ const VIEW_SURFACE_MAP: Record<View, Surface> = {
   'client-portal': 'client'
 };
 
-const STORAGE_PREFIX = 'recruitbyct_v2_';
+const LIVE_STORAGE_PREFIX = 'recruitbyct_live_';
+const NEON_ATS_API = 'https://br-gentle-fire-an6dvebb-ats.compute.c-6.us-east-1.aws.neon.tech';
 
 function loadStorage<T>(key: string, defaultValue: T): T {
   try {
-    const item = localStorage.getItem(STORAGE_PREFIX + key);
+    const item = localStorage.getItem(LIVE_STORAGE_PREFIX + key);
     return item ? JSON.parse(item) : defaultValue;
   } catch {
     return defaultValue;
@@ -173,13 +219,29 @@ function loadStorage<T>(key: string, defaultValue: T): T {
 
 function saveStorage<T>(key: string, value: T): void {
   try {
-    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+    localStorage.setItem(LIVE_STORAGE_PREFIX + key, JSON.stringify(value));
   } catch (e) {
     console.error('Failed to save to localStorage', e);
   }
 }
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Purge legacy dummy storage keys on initial startup
+  useEffect(() => {
+    try {
+      const legacyKeys = [
+        'recruitbyct_v2_jobs',
+        'recruitbyct_v2_cands',
+        'recruitbyct_v2_apps',
+        'recruitbyct_v2_clients',
+        'recruitbyct_v2_placements',
+        'recruitbyct_v2_driveLogs',
+        'recruitbyct_v2_activityLogs'
+      ];
+      legacyKeys.forEach(k => localStorage.removeItem(k));
+    } catch {}
+  }, []);
+
   // Theme state
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
@@ -202,10 +264,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  // View & Surface state
+  // View & Surface state driven by window.location.pathname
   const [view, setView] = useState<View>(() => {
-    const hash = window.location.hash.slice(1) as View;
-    return VIEW_SURFACE_MAP[hash] ? hash : 'careers';
+    return pathToView(window.location.pathname);
   });
 
   const surface = VIEW_SURFACE_MAP[view] || 'public';
@@ -213,9 +274,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const navigate = (v: View) => {
     setView(v);
     setModal(null);
-    try {
-      window.location.hash = v;
-    } catch {}
+    const targetPath = viewToPath(v);
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({}, '', targetPath);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -223,32 +285,118 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     navigate(SURFACE_HOME[s]);
   };
 
-  // Listen to hash changes
+  // Listen to popstate (browser back/forward buttons)
   useEffect(() => {
-    const onHashChange = () => {
-      const h = window.location.hash.slice(1) as View;
-      if (h && VIEW_SURFACE_MAP[h] && h !== view) {
-        setView(h);
-        setModal(null);
-      }
+    const onPopState = () => {
+      const v = pathToView(window.location.pathname);
+      setView(v);
+      setModal(null);
     };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, [view]);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
-  // Main Entities State
-  const [clients, setClients] = useState<Client[]>(() => loadStorage('clients', INITIAL_CLIENTS));
-  const [jobs, setJobs] = useState<JobOrder[]>(() => loadStorage('jobs', INITIAL_JOBS));
-  const [candidates, setCandidates] = useState<Candidate[]>(() => loadStorage('cands', INITIAL_CANDIDATES));
-  const [applications, setApplications] = useState<Application[]>(() => loadStorage('apps', INITIAL_APPLICATIONS));
-  const [placements, setPlacements] = useState<Placement[]>(() => loadStorage('placements', INITIAL_PLACEMENTS));
-  const [driveLogs, setDriveLogs] = useState<DriveLogItem[]>(() => loadStorage('driveLogs', INITIAL_DRIVE_LOGS));
-  const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(() => loadStorage('activityLogs', INITIAL_ACTIVITY_LOGS));
-  const [driveConnected, setDriveConnected] = useState<boolean>(() => loadStorage('driveConnected', true));
-  const [sheetLogging, setSheetLogging] = useState<boolean>(() => loadStorage('sheetLogging', true));
-  const [formBatchIndex, setFormBatchIndex] = useState<number>(() => loadStorage('formBatchIndex', 0));
+  // Main Live Entities State
+  const [clients, setClients] = useState<Client[]>(() => loadStorage('clients', [
+    {
+      id: 'c1',
+      name: 'Cube Tech Consults HQ',
+      industry: 'IT & Professional Services',
+      contact: 'Admin Recruiter (recruitment@cubetechconsults.com)',
+      fee: 15,
+      guarantee: 90
+    }
+  ]));
 
-  // Sync to storage
+  const [jobs, setJobs] = useState<JobOrder[]>(() => loadStorage('jobs', []));
+  const [candidates, setCandidates] = useState<Candidate[]>(() => loadStorage('cands', []));
+  const [applications, setApplications] = useState<Application[]>(() => loadStorage('apps', []));
+  const [placements, setPlacements] = useState<Placement[]>(() => loadStorage('placements', []));
+  const [driveLogs, setDriveLogs] = useState<DriveLogItem[]>(() => loadStorage('driveLogs', []));
+  const [activityLogs, setActivityLogs] = useState<ActivityLogItem[]>(() => loadStorage('activityLogs', []));
+  const [driveConnected, setDriveConnected] = useState<boolean>(true);
+  const [sheetLogging, setSheetLogging] = useState<boolean>(true);
+  const [formBatchIndex, setFormBatchIndex] = useState<number>(0);
+
+  // Live Sync with Neon Serverless Postgres Backend
+  useEffect(() => {
+    let isMounted = true;
+    async function syncFromNeon() {
+      try {
+        // 1. Fetch live jobs from Neon Postgres
+        const jobsRes = await fetch(`${NEON_ATS_API}/jobs?role=recruiter`);
+        if (jobsRes.ok) {
+          const jobsData = await jobsRes.json();
+          if (Array.isArray(jobsData.jobs) && jobsData.jobs.length > 0 && isMounted) {
+            const mappedJobs: JobOrder[] = jobsData.jobs.map((dbJob: any) => ({
+              id: String(dbJob.id),
+              clientId: dbJob.client_id || 'c1',
+              title: dbJob.title,
+              location: dbJob.location || 'Abuja',
+              type: dbJob.work_type || 'Full-time',
+              category: dbJob.category || 'Customer service',
+              salary: [Number(dbJob.salary_min) || 300000, Number(dbJob.salary_max) || 450000],
+              closes: dbJob.closes_at ? String(dbJob.closes_at).split('T')[0] : addDays(30),
+              state: dbJob.state || 'open',
+              approved: Boolean(dbJob.approved),
+              minYears: Number(dbJob.min_years_experience) || 3,
+              listing: {
+                published: Boolean(dbJob.is_published),
+                confidential: Boolean(dbJob.is_confidential),
+                showSalary: Boolean(dbJob.show_salary ?? true)
+              },
+              summary: dbJob.summary || 'Customer excellence & consulting role at Cube Tech Consults.',
+              duties: Array.isArray(dbJob.duties) && dbJob.duties.length > 0 
+                ? dbJob.duties 
+                : ['Ensure high first-contact resolution for all customer inquiries', 'Audit communication logs and customer escalations'],
+              must: Array.isArray(dbJob.must_have_skills) && dbJob.must_have_skills.length > 0
+                ? dbJob.must_have_skills
+                : [
+                    { label: 'Customer Service & Communication', keys: ['cx', 'communication', 'support'] },
+                    { label: 'CRM & Omnichannel Escalation', keys: ['crm', 'zendesk', 'resolution'] }
+                  ],
+              nice: Array.isArray(dbJob.nice_to_have_skills) ? dbJob.nice_to_have_skills : [],
+              listingFeePaid: Boolean(dbJob.listing_fee_paid),
+              listingFeeAmount: Number(dbJob.listing_fee_amount) || 10000,
+              listingFeeRef: dbJob.listing_fee_ref || '',
+              recruiterEmail: dbJob.recruiter_email || 'recruiter@cubetechconsults.com'
+            }));
+            setJobs(mappedJobs);
+          }
+        }
+
+        // 2. Fetch live candidates from Neon Postgres
+        const candsRes = await fetch(`${NEON_ATS_API}/candidates?role=recruiter`);
+        if (candsRes.ok) {
+          const candsData = await candsRes.json();
+          if (Array.isArray(candsData.candidates) && candsData.candidates.length > 0 && isMounted) {
+            const mappedCands: Candidate[] = candsData.candidates.map((dbCand: any) => ({
+              id: String(dbCand.id),
+              name: dbCand.fullName || dbCand.displayName,
+              headline: dbCand.headline || 'Professional Consultant',
+              loc: dbCand.location || 'Abuja',
+              years: Number(dbCand.yearsExperience) || 0,
+              skills: Array.isArray(dbCand.skills) ? dbCand.skills : [],
+              sal: Number(dbCand.expectedSalary) || 0,
+              avail: Number(dbCand.availabilityDays) || 0,
+              verified: dbCand.lastVerifiedAt ? String(dbCand.lastVerifiedAt).split('T')[0] : '2026-11-09',
+              drive: 'synced',
+              email: dbCand.email || '',
+              phone: dbCand.phone || ''
+            }));
+            setCandidates(mappedCands);
+          }
+        }
+      } catch (err) {
+        console.warn('[Neon Sync] Background live fetch notice:', err);
+      }
+    }
+
+    syncFromNeon();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Sync to live local storage for optimistic offline resilience
   useEffect(() => saveStorage('clients', clients), [clients]);
   useEffect(() => saveStorage('jobs', jobs), [jobs]);
   useEffect(() => saveStorage('cands', candidates), [candidates]);
@@ -256,9 +404,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => saveStorage('placements', placements), [placements]);
   useEffect(() => saveStorage('driveLogs', driveLogs), [driveLogs]);
   useEffect(() => saveStorage('activityLogs', activityLogs), [activityLogs]);
-  useEffect(() => saveStorage('driveConnected', driveConnected), [driveConnected]);
-  useEffect(() => saveStorage('sheetLogging', sheetLogging), [sheetLogging]);
-  useEffect(() => saveStorage('formBatchIndex', formBatchIndex), [formBatchIndex]);
 
   // Modals & Toast
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -378,6 +523,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (stage === 'placed') {
       triggerPlacement(app);
     }
+
+    // Sync pipeline stage to live Neon Postgres backend
+    fetch(`${NEON_ATS_API}/applications/stage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        applicationId: id,
+        stage,
+        notes: `Advanced to ${STAGE_LABELS[stage]}`
+      })
+    }).catch(e => console.warn('[Neon Sync] Stage sync notice:', e));
   };
 
   // Approvals derivation
@@ -542,6 +698,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setApplications(prev => [newApp, ...prev]);
 
+    // Live sync application to Neon Postgres backend
+    fetch(`${NEON_ATS_API}/applications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: j.id,
+        fullName: name,
+        email,
+        phone,
+        resumeFileUrl: newApp.file,
+        knockoutAnswers: answers
+      })
+    }).catch(e => console.warn('[Neon Sync] Application submission notice:', e));
+
     // Drive sync log
     const newDriveLog: DriveLogItem = {
       id: nextId('d'),
@@ -645,10 +815,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'Uphold company standards and service levels'
       ],
       must: mustSpecs.map(([label, keys]) => ({ label, keys })),
-      nice: niceSpecs.map(([label, keys, w]) => ({ label, keys, w }))
+      nice: niceSpecs.map(([label, keys, w]) => ({ label, keys, w })),
+      listingFeePaid: false,
+      listingFeeAmount: 10000,
+      recruiterEmail: 'recruiter@cubetechconsults.com'
     };
 
     setJobs(prev => [newJob, ...prev]);
+
+    // Live sync draft job to Neon Postgres backend
+    fetch(`${NEON_ATS_API}/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        location: loc,
+        workType: 'Full-time',
+        category: cat,
+        salaryMin: minPay,
+        salaryMax: maxPay,
+        recruiterEmail: 'recruiter@cubetechconsults.com',
+        duties: newJob.duties,
+        mustHaveSkills: newJob.must,
+        niceToHaveSkills: newJob.nice
+      })
+    }).catch(e => console.warn('[Neon Sync] Job creation notice:', e));
     logActivity(`Scorecard drafted for ${title}`);
     setModal({ type: 'jo', id: newJob.id });
     showToast('Scorecard drafted. Review it and approve to publish.');
@@ -716,6 +907,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setApplications(prev => [newApp, ...prev]);
+
+    // Live sync application to Neon Postgres backend
+    fetch(`${NEON_ATS_API}/applications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: j.id,
+        fullName: c.name,
+        email: c.email,
+        phone: c.phone,
+        resumeFileUrl: newApp.file,
+        knockoutAnswers: newApp.answers
+      })
+    }).catch(e => console.warn('[Neon Sync] Application submission notice:', e));
     logActivity(`${c.name} added from talent pool to ${j.title}`);
     showToast(`Added ${c.name} to ${j.title} at Screening.`);
   };

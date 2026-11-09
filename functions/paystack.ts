@@ -14,6 +14,17 @@ import crypto from "node:crypto";
  */
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
+  const method = req.method.toUpperCase();
+
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, x-paystack-signature, x-neon-trigger-invocation-id",
+  };
+
+  if (method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
 
   // 1. Health check & inspection endpoint (GET)
   if (req.method === "GET") {
@@ -26,7 +37,7 @@ export default async function handler(req: Request): Promise<Response> {
       runtime: "Neon Functions (Node.js 24)",
       database: "Neon Serverless Postgres",
       timestamp: new Date().toISOString(),
-    });
+    }, { headers: corsHeaders });
   }
 
   // 2. Check for Neon platform trigger delivery

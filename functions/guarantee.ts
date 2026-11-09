@@ -14,6 +14,18 @@ import { parseTriggerDelivery } from "@neon/functions/triggers";
  */
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
+  const method = req.method.toUpperCase();
+
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, x-neon-trigger-invocation-id",
+  };
+
+  if (method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
   let triggerSource = "manual_http";
   let triggerDetails: any = null;
 
@@ -34,7 +46,7 @@ export default async function handler(req: Request): Promise<Response> {
   if (!dbUrl) {
     return Response.json(
       { error: "DATABASE_URL not configured on function runtime" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
   const sql = neon(dbUrl);
@@ -151,12 +163,12 @@ export default async function handler(req: Request): Promise<Response> {
         approachingMilestone,
         invoiceFollowupsDue,
       },
-    });
+    }, { headers: corsHeaders });
   } catch (err: any) {
     console.error("[Guarantee Watcher Error]", err);
     return Response.json(
       { error: "Audit job failed", details: err.message },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

@@ -10,7 +10,7 @@ export const PublicHeader: React.FC = () => {
       <div className="inner">
         <a
           className="brand"
-          href="#careers"
+          href="/careers"
           onClick={e => {
             e.preventDefault();
             navigate('careers');
