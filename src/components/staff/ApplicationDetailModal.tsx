@@ -11,7 +11,7 @@ import {
   STAGE_INDEX,
   STAGE_LABELS
 } from '../../utils/helpers';
-import { Check, X, FileText } from 'lucide-react';
+import { Check, X, FileText, Sparkles, Clock, ExternalLink } from 'lucide-react';
 import { Stage } from '../../types';
 
 export const ApplicationDetailModal: React.FC = () => {
@@ -96,6 +96,110 @@ export const ApplicationDetailModal: React.FC = () => {
             AI pre-screen match score. Your recruiter judgment outranks it.
           </div>
         </div>
+      </div>
+
+      {/* Screen Shortlisted Applicants Through An AI Interview */}
+      <div
+        className="kcard"
+        style={{
+          padding: '16px',
+          borderRadius: '12px',
+          backgroundColor: 'rgba(255, 204, 0, 0.06)',
+          border: '1px solid rgba(255, 204, 0, 0.25)',
+          marginBottom: '18px'
+        }}
+      >
+        <div className="row spread" style={{ flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(255, 204, 0, 0.15)',
+                color: 'var(--yellow)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <b style={{ fontSize: '13px', color: 'var(--yellow-text, #fef08a)' }}>
+                Screen shortlisted applicants through an AI interview
+              </b>
+              <p className="xs muted" style={{ margin: 0 }}>
+                Save time by inviting top applicants to complete an AI interview.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            {app.aiInterview?.status === 'completed' ? (
+              <button
+                type="button"
+                className="btn primary sm"
+                onClick={() => openModal({ type: 'ai-interview-result', id: app.id })}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Sparkles size={13} /> View Scorecard ({app.aiInterview.overallScore}%)
+              </button>
+            ) : app.aiInterview?.status === 'invited' ? (
+              <div className="row" style={{ gap: '6px' }}>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => openModal({ type: 'ai-interview-invite', id: app.id })}
+                >
+                  <Clock size={13} /> Review Invite
+                </button>
+                <button
+                  type="button"
+                  className="btn primary sm"
+                  onClick={() => {
+                    closeModal();
+                    window.location.href = `/interview?token=${app.aiInterview?.token}`;
+                  }}
+                >
+                  <ExternalLink size={13} /> Open Room
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn primary sm"
+                onClick={() => openModal({ type: 'ai-interview-invite', id: app.id })}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Sparkles size={13} /> Invite to AI Interview
+              </button>
+            )}
+          </div>
+        </div>
+
+        {app.aiInterview?.status === 'completed' && (
+          <div
+            style={{
+              marginTop: '10px',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            <span style={{ color: '#10b981' }}>
+              ✓ Candidate completed AI Screening: <b>{app.aiInterview.recommendation}</b>
+            </span>
+            <span className="xs muted">
+              {app.aiInterview.responses?.length || 0} questions evaluated
+            </span>
+          </div>
+        )}
       </div>
 
       {app.rejectPending && (

@@ -54,6 +54,9 @@ export default async function handler(req: Request): Promise<Response> {
             "GET    /metrics            - Recruitment operations & listing revenue summary",
             "POST   /recruiters/onboard - Recruiter agent self-onboarding registration",
             "GET    /recruiters         - List registered recruiter agents",
+            "POST   /interviews/invite  - Screen shortlisted applicants through an AI interview invite",
+            "GET    /interviews/session - Candidate AI interview screening room session details",
+            "POST   /interviews/submit  - Submit candidate responses & generate AI evaluation scorecard",
           ],
           timestamp: new Date().toISOString(),
         },
@@ -872,6 +875,155 @@ export default async function handler(req: Request): Promise<Response> {
         LIMIT 100;
       `;
       return Response.json({ count: logs.length, logs }, { headers: corsHeaders });
+    }
+
+    // 13. POST /interviews/invite - Screen Shortlisted Applicants Through An AI Interview
+    if (path === "/interviews/invite" && method === "POST") {
+      const body = await req.json();
+      const { appId, candidateId, jobId, questions = [], token: customToken } = body;
+
+      const token = customToken || `int_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const session = {
+        token,
+        invitedAt: new Date().toISOString(),
+        status: "invited",
+        questions
+      };
+
+      if (appId) {
+        try {
+          await sql`
+            UPDATE applications
+            SET ai_interview = ${JSON.stringify(session)}
+            WHERE id = ${appId}
+          `;
+        } catch (e) {
+          console.warn("Could not update applications table directly, fallback:", e);
+        }
+      }
+
+      // Record activity log
+      await sql`
+        INSERT INTO activity_logs (event, message, metadata)
+        VALUES (
+          'ai_interview_invited',
+          ${`Invited candidate to AI Interview session ${token}`},
+          ${JSON.stringify({ appId, candidateId, jobId, token, questionCount: questions.length })}
+        )
+      `;
+
+      return Response.json(
+        {
+          status: "success",
+          message: "AI Interview invitation successfully registered",
+          token,
+          inviteUrl: `https://recruitbyct.com/interview?token=${token}`,
+          session
+        },
+        { headers: corsHeaders }
+      );
+    }
+
+    // 14. GET /interviews/session - Candidate AI Interview Screening Room Session
+    if (path === "/interviews/session" && method === "GET") {
+      const token = url.searchParams.get("token");
+      if (!token) {
+        return Response.json(
+          { error: "token query parameter is required" },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const rows = await sql`
+        SELECT 
+          a.id as app_id, a.reference_code, a.ai_interview,
+          c.full_name as candidate_name, c.email as candidate_email, c.location as candidate_loc,
+          j.title as job_title, j.summary as job_summary
+        FROM applications a
+        LEFT JOIN candidates c ON a.candidate_id = c.id
+        LEFT JOIN job_orders j ON a.job_id = j.id
+        WHERE a.ai_interview->>'token' = ${token}
+        LIMIT 1;
+      `;
+
+      if (rows.length > 0) {
+        return Response.json(
+          {
+            status: "success",
+            session: rows[0].ai_interview,
+            candidate: {
+              name: rows[0].candidate_name,
+              email: rows[0].candidate_email,
+              location: rows[0].candidate_loc
+            },
+            job: {
+              title: rows[0].job_title,
+              summary: rows[0].job_summary
+            }
+          },
+          { headers: corsHeaders }
+        );
+      }
+
+      return Response.json(
+        {
+          status: "active",
+          token,
+          message: "Interview token ready for candidate screening"
+        },
+        { headers: corsHeaders }
+      );
+    }
+
+    // 15. POST /interviews/submit - Submit Candidate Responses & Generate AI Scorecard
+    if (path === "/interviews/submit" && method === "POST") {
+      const body = await req.json();
+      const { token, answers = [], evaluation } = body;
+
+      if (!token) {
+        return Response.json(
+          { error: "token is required" },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const updatedSession = {
+        token,
+        completedAt: new Date().toISOString(),
+        status: "completed",
+        overallScore: evaluation?.overallScore || 85,
+        recommendation: evaluation?.recommendation || "Advance",
+        summary: evaluation?.summary || "Candidate completed AI interview screening successfully.",
+        responses: evaluation?.responses || []
+      };
+
+      try {
+        await sql`
+          UPDATE applications
+          SET ai_interview = ${JSON.stringify(updatedSession)}
+          WHERE ai_interview->>'token' = ${token}
+        `;
+      } catch (e) {
+        console.warn("Could not update applications by token:", e);
+      }
+
+      await sql`
+        INSERT INTO activity_logs (event, message, metadata)
+        VALUES (
+          'ai_interview_completed',
+          ${`Candidate completed AI Interview for session ${token}. Score: ${updatedSession.overallScore}% (${updatedSession.recommendation})`},
+          ${JSON.stringify({ token, overallScore: updatedSession.overallScore, recommendation: updatedSession.recommendation })}
+        )
+      `;
+
+      return Response.json(
+        {
+          status: "success",
+          message: "AI Interview responses evaluated and saved",
+          session: updatedSession
+        },
+        { headers: corsHeaders }
+      );
     }
 
     return Response.json(

@@ -12,6 +12,9 @@ import { EditJobOrderModal } from '../staff/EditJobOrderModal';
 import { ResumeBatchScreeningModal } from '../staff/ResumeBatchScreeningModal';
 import { LinkedInJobsModal } from '../staff/LinkedInJobsModal';
 import { RejectMessageModal } from '../staff/RejectMessageModal';
+import { PaystackListingModal } from '../staff/PaystackListingModal';
+import { AiInterviewInviteModal } from '../staff/AiInterviewInviteModal';
+import { AiInterviewResultModal } from '../staff/AiInterviewResultModal';
 
 export const ModalContainer: React.FC = () => {
   const { modal, closeModal } = useApp();
@@ -45,7 +48,10 @@ export const ModalContainer: React.FC = () => {
     modal.type === 'aidraft' ||
     modal.type === 'editjob' ||
     modal.type === 'resume-import' ||
-    modal.type === 'linkedin-jobs';
+    modal.type === 'linkedin-jobs' ||
+    modal.type === 'paystack' ||
+    modal.type === 'ai-interview-invite' ||
+    modal.type === 'ai-interview-result';
 
   return (
     <div
@@ -62,7 +68,11 @@ export const ModalContainer: React.FC = () => {
         aria-modal="true"
         aria-label="Modal dialog"
         style={
-          modal.type === 'resume-import' || modal.type === 'linkedin-jobs' || modal.type === 'editjob'
+          modal.type === 'resume-import' ||
+          modal.type === 'linkedin-jobs' ||
+          modal.type === 'editjob' ||
+          modal.type === 'ai-interview-invite' ||
+          modal.type === 'ai-interview-result'
             ? { maxWidth: '880px', width: '92%' }
             : undefined
         }
@@ -81,6 +91,9 @@ export const ModalContainer: React.FC = () => {
         {modal.type === 'editjob' && <EditJobOrderModal />}
         {modal.type === 'resume-import' && <ResumeBatchScreeningModal />}
         {modal.type === 'linkedin-jobs' && <LinkedInJobsModal />}
+        {modal.type === 'paystack' && <PaystackListingModal />}
+        {modal.type === 'ai-interview-invite' && <AiInterviewInviteModal />}
+        {modal.type === 'ai-interview-result' && <AiInterviewResultModal />}
         {modal.type === 'reject' && <RejectMessageModal />}
       </div>
     </div>

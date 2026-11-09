@@ -18,6 +18,7 @@ export type View =
   | 'track'
   | 'onboard'
   | 'login'
+  | 'interview'
   | 'dashboard'
   | 'pipeline'
   | 'pool'
@@ -28,6 +29,35 @@ export type View =
   | 'intake'
   | 'client-portal'
   | 'admin';
+
+export interface AiInterviewQuestion {
+  id: string;
+  question: string;
+  category: string;
+  expectedKeywords: string[];
+}
+
+export interface AiInterviewResponse {
+  questionId: string;
+  questionText: string;
+  answerText: string;
+  score: number;
+  clarityScore: number;
+  technicalScore: number;
+  feedback: string;
+}
+
+export interface AiInterviewSession {
+  token: string;
+  invitedAt: string;
+  completedAt?: string;
+  status: 'invited' | 'in_progress' | 'completed' | 'expired';
+  questions: AiInterviewQuestion[];
+  responses?: AiInterviewResponse[];
+  overallScore?: number;
+  recommendation?: 'Strong Hire' | 'Advance' | 'Review Needed' | 'Do Not Advance';
+  summary?: string;
+}
 
 export interface Client {
   id: string;
@@ -112,6 +142,7 @@ export interface Application {
     reason: string;
     src: 'client' | 'ai';
   } | null;
+  aiInterview?: AiInterviewSession;
 }
 
 export interface Placement {

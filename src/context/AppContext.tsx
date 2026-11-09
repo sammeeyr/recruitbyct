@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
   ActivityLogItem,
+  AiInterviewQuestion,
+  AiInterviewSession,
   Application,
   ApprovalItem,
   Candidate,
@@ -34,10 +36,27 @@ import {
   nextId,
   STAGE_LABELS
 } from '../utils/helpers';
+import {
+  generateAiInterviewQuestions,
+  evaluateInterviewSubmission
+} from '../utils/aiInterviewHelper';
 import confetti from 'canvas-confetti';
 
 interface ModalState {
-  type: 'job' | 'app' | 'cand' | 'jo' | 'reject' | 'newjob' | 'editjob' | 'aidraft' | 'resume-import' | 'linkedin-jobs';
+  type:
+    | 'job'
+    | 'app'
+    | 'cand'
+    | 'jo'
+    | 'reject'
+    | 'newjob'
+    | 'editjob'
+    | 'aidraft'
+    | 'resume-import'
+    | 'linkedin-jobs'
+    | 'paystack'
+    | 'ai-interview-invite'
+    | 'ai-interview-result';
   id?: string;
   jobId?: string;
   mode?: 'detail' | 'apply' | 'gform' | 'done';
@@ -139,6 +158,16 @@ interface AppContextType {
   clientApproveOffer: (appId: string) => void;
   withdrawApplication: (appId: string) => void;
 
+  // AI Interview
+  inviteCandidateToAiInterview: (
+    appId: string,
+    customQuestions?: AiInterviewQuestion[]
+  ) => Promise<{ token: string; inviteUrl: string } | null>;
+  submitAiInterviewResponses: (
+    token: string,
+    answers: { questionId: string; answerText: string }[]
+  ) => Promise<any>;
+
   // System
   resetAllData: () => void;
 }
@@ -151,6 +180,7 @@ export function pathToView(pathname: string): View {
   if (clean === '/careers/track' || clean === '/track') return 'track';
   if (clean === '/onboard' || clean === '/recruiter-onboarding' || clean === '/join') return 'onboard';
   if (clean === '/login' || clean === '/signin' || clean === '/recruiter/login') return 'login';
+  if (clean === '/interview' || clean.startsWith('/interview')) return 'interview';
   if (clean === '/portal' || clean === '/client' || clean === '/portal/candidates') return 'client-portal';
   if (clean === '/dashboard') return 'dashboard';
   if (clean === '/dashboard/pipeline' || clean === '/pipeline') return 'pipeline';
@@ -174,6 +204,8 @@ export function viewToPath(view: View): string {
       return '/onboard';
     case 'login':
       return '/login';
+    case 'interview':
+      return '/interview';
     case 'admin':
       return '/admin';
     case 'dashboard':
@@ -210,6 +242,7 @@ const VIEW_SURFACE_MAP: Record<View, Surface> = {
   track: 'public',
   onboard: 'public',
   login: 'public',
+  interview: 'public',
   admin: 'staff',
   dashboard: 'staff',
   pipeline: 'staff',
@@ -1317,6 +1350,113 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Application withdrawn.');
   };
 
+  // AI Candidate Interview Screening
+  const inviteCandidateToAiInterview = async (
+    appId: string,
+    customQuestions?: AiInterviewQuestion[]
+  ): Promise<{ token: string; inviteUrl: string } | null> => {
+    const app = applications.find(a => a.id === appId);
+    if (!app) return null;
+
+    const job = jobs.find(j => j.id === app.jobId);
+    const cand = candidates.find(c => c.id === app.candId);
+    const questions = customQuestions && customQuestions.length > 0
+      ? customQuestions
+      : generateAiInterviewQuestions(job || {});
+    const token = `int_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+
+    const session: AiInterviewSession = {
+      token,
+      invitedAt: new Date().toISOString(),
+      status: 'invited',
+      questions
+    };
+
+    setApplications(prev => {
+      const next = prev.map(a => (a.id === appId ? { ...a, aiInterview: session } : a));
+      saveStorage('applications', next);
+      return next;
+    });
+
+    logActivity(`Invited candidate ${cand?.name || 'Applicant'} to AI Interview for ${job?.title || 'Job'}`);
+    showToast(`AI interview invitation created for ${cand?.name || 'Applicant'}`);
+
+    const inviteUrl = `${window.location.origin}/interview?token=${token}`;
+
+    try {
+      fetch(`${NEON_ATS_API}/interviews/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appId,
+          candidateId: cand?.id,
+          jobId: job?.id,
+          token,
+          questions
+        })
+      }).catch(() => {});
+    } catch {}
+
+    return { token, inviteUrl };
+  };
+
+  const submitAiInterviewResponses = async (
+    token: string,
+    answers: { questionId: string; answerText: string }[]
+  ): Promise<any> => {
+    const app = applications.find(a => a.aiInterview?.token === token);
+    const targetSession = app?.aiInterview;
+    const questions = targetSession?.questions || generateAiInterviewQuestions({});
+
+    const evaluation = evaluateInterviewSubmission(questions, answers);
+
+    const updatedSession: AiInterviewSession = {
+      ...(targetSession || { token, invitedAt: new Date().toISOString() }),
+      token,
+      completedAt: new Date().toISOString(),
+      status: 'completed',
+      questions,
+      responses: evaluation.responses,
+      overallScore: evaluation.overallScore,
+      recommendation: evaluation.recommendation,
+      summary: evaluation.summary
+    };
+
+    if (app) {
+      setApplications(prev => {
+        const next = prev.map(a =>
+          a.id === app.id
+            ? {
+                ...a,
+                aiInterview: updatedSession
+              }
+            : a
+        );
+        saveStorage('applications', next);
+        return next;
+      });
+
+      const cand = candidates.find(c => c.id === app.candId);
+      logActivity(
+        `AI Interview completed for ${cand?.name || 'Applicant'}. Score: ${evaluation.overallScore}% (${evaluation.recommendation})`
+      );
+    }
+
+    try {
+      fetch(`${NEON_ATS_API}/interviews/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          answers,
+          evaluation
+        })
+      }).catch(() => {});
+    } catch {}
+
+    return { status: 'success', evaluation, session: updatedSession };
+  };
+
   // Reset all to sample defaults
   const resetAllData = () => {
     setClients(INITIAL_CLIENTS);
@@ -1394,6 +1534,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         clientMakeOffer,
         clientApproveOffer,
         withdrawApplication,
+        inviteCandidateToAiInterview,
+        submitAiInterviewResponses,
         resetAllData
       }}
     >

@@ -10,6 +10,7 @@ import {
 } from '../../utils/helpers';
 import { Stage } from '../../types';
 import { KNOCKOUT_QUESTIONS } from '../../data/mockData';
+import { Sparkles, Clock } from 'lucide-react';
 
 export const PipelineView: React.FC = () => {
   const {
@@ -117,6 +118,28 @@ export const PipelineView: React.FC = () => {
                 <span>{columnApps.length}</span>
               </h3>
 
+              {stageKey === 'shortlisted' && (
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(255, 204, 0, 0.08)',
+                    border: '1px solid rgba(255, 204, 0, 0.25)',
+                    marginBottom: '10px'
+                  }}
+                >
+                  <div className="row" style={{ gap: '6px', alignItems: 'center', marginBottom: '2px' }}>
+                    <Sparkles size={12} style={{ color: 'var(--yellow)', flexShrink: 0 }} />
+                    <b className="xs" style={{ color: 'var(--yellow-text, #fef08a)', lineHeight: 1.2 }}>
+                      Screen shortlisted applicants through an AI interview
+                    </b>
+                  </div>
+                  <p className="xs muted" style={{ fontSize: '10px', margin: 0, lineHeight: 1.3 }}>
+                    Save time by inviting top applicants to complete an AI interview.
+                  </p>
+                </div>
+              )}
+
               {columnApps.length > 0 ? (
                 columnApps.map(app => {
                   const candidate = candidates.find(c => c.id === app.candId);
@@ -158,6 +181,83 @@ export const PipelineView: React.FC = () => {
                           <span className="xs muted">{relativeTime(app.updated)}</span>
                         )}
                       </div>
+
+                      {/* AI Interview Status Pill / Trigger */}
+                      {app.aiInterview?.status === 'completed' && (
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => openModal({ type: 'ai-interview-result', id: app.id })}
+                          style={{
+                            width: '100%',
+                            marginTop: '8px',
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                            color: '#10b981',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Sparkles size={11} /> AI Score: {app.aiInterview.overallScore}%
+                          </span>
+                          <span style={{ fontWeight: 700 }}>{app.aiInterview.recommendation}</span>
+                        </button>
+                      )}
+
+                      {app.aiInterview?.status === 'invited' && (
+                        <button
+                          type="button"
+                          className="btn sm ghost"
+                          onClick={() => openModal({ type: 'ai-interview-invite', id: app.id })}
+                          style={{
+                            width: '100%',
+                            marginTop: '8px',
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            backgroundColor: 'rgba(255, 204, 0, 0.08)',
+                            border: '1px solid rgba(255, 204, 0, 0.25)',
+                            color: 'var(--yellow-text, #fef08a)',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}
+                        >
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Clock size={11} /> AI Interview Invited
+                          </span>
+                          <span style={{ fontSize: '10px', textDecoration: 'underline' }}>Link</span>
+                        </button>
+                      )}
+
+                      {(app.stage === 'shortlisted' || app.stage === 'screening') && !app.aiInterview && (
+                        <button
+                          type="button"
+                          className="btn sm ghost"
+                          onClick={() => openModal({ type: 'ai-interview-invite', id: app.id })}
+                          style={{
+                            width: '100%',
+                            marginTop: '8px',
+                            padding: '4px 8px',
+                            fontSize: '11px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                            border: '1px dashed var(--border)',
+                            color: 'var(--text)',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Sparkles size={11} style={{ color: 'var(--yellow)' }} /> Invite to AI Interview
+                        </button>
+                      )}
 
                       <label className="sr" htmlFor={`mv-${app.id}`}>
                         Move {candidate.name} to stage
