@@ -39,6 +39,14 @@ export const PublicHeader: React.FC = () => {
           >
             Track my application
           </button>
+          <button
+            type="button"
+            onClick={() => navigate('onboard')}
+            aria-current={view === 'onboard' ? 'page' : undefined}
+            style={{ fontWeight: 600, color: 'var(--red-text)' }}
+          >
+            Recruiter partner
+          </button>
         </nav>
       </div>
     </header>

@@ -5,7 +5,7 @@ import { Sun, Moon, Shield, User } from 'lucide-react';
 import { Surface } from '../../types';
 
 export const TopStrip: React.FC = () => {
-  const { surface, setSurface, theme, toggleTheme, setSelectedClientId } = useApp();
+  const { surface, setSurface, theme, toggleTheme, setSelectedClientId, view, navigate } = useApp();
   const { user, allUsers, switchUser } = useAuth();
 
   const handleUserChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -69,11 +69,19 @@ export const TopStrip: React.FC = () => {
               key={key}
               type="button"
               onClick={() => setSurface(key)}
-              aria-pressed={surface === key}
+              aria-pressed={surface === key && view !== 'onboard'}
             >
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => navigate('onboard')}
+            aria-pressed={view === 'onboard'}
+            style={{ fontWeight: 600, color: view === 'onboard' ? 'var(--red)' : undefined }}
+          >
+            Onboard (/onboard)
+          </button>
         </div>
 
         {/* Live Neon & Theme switcher */}

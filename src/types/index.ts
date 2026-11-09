@@ -16,6 +16,7 @@ export type Surface = 'public' | 'staff' | 'client';
 export type View =
   | 'careers'
   | 'track'
+  | 'onboard'
   | 'dashboard'
   | 'pipeline'
   | 'pool'

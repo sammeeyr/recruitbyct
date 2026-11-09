@@ -144,6 +144,7 @@ export function pathToView(pathname: string): View {
   const clean = pathname.toLowerCase().replace(/\/+$/, '') || '/';
   if (clean === '/' || clean === '/careers') return 'careers';
   if (clean === '/careers/track' || clean === '/track') return 'track';
+  if (clean === '/onboard' || clean === '/recruiter-onboarding' || clean === '/join') return 'onboard';
   if (clean === '/portal' || clean === '/client' || clean === '/portal/candidates') return 'client-portal';
   if (clean === '/dashboard') return 'dashboard';
   if (clean === '/dashboard/pipeline' || clean === '/pipeline') return 'pipeline';
@@ -162,6 +163,8 @@ export function viewToPath(view: View): string {
       return '/careers';
     case 'track':
       return '/careers/track';
+    case 'onboard':
+      return '/onboard';
     case 'dashboard':
       return '/dashboard';
     case 'pipeline':
@@ -194,6 +197,7 @@ const SURFACE_HOME: Record<Surface, View> = {
 const VIEW_SURFACE_MAP: Record<View, Surface> = {
   careers: 'public',
   track: 'public',
+  onboard: 'public',
   dashboard: 'staff',
   pipeline: 'staff',
   pool: 'staff',

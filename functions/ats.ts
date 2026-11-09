@@ -52,6 +52,8 @@ export default async function handler(req: Request): Promise<Response> {
             "POST   /applications       - Ingest candidate application with reference code",
             "POST   /applications/stage - Advance candidate pipeline stage",
             "GET    /metrics            - Recruitment operations & listing revenue summary",
+            "POST   /recruiters/onboard - Recruiter agent self-onboarding registration",
+            "GET    /recruiters         - List registered recruiter agents",
           ],
           timestamp: new Date().toISOString(),
         },
@@ -344,6 +346,82 @@ export default async function handler(req: Request): Promise<Response> {
         },
         { headers: corsHeaders }
       );
+    }
+
+    // 8. POST /recruiters/onboard - Recruiter Agent Self-Onboarding
+    if (path === "/recruiters/onboard" && method === "POST") {
+      const body = await req.json();
+      const {
+        fullName,
+        agencyName = "",
+        email,
+        phone,
+        location = "Abuja",
+        specialization = "Customer Service & BPO",
+        bankName = "",
+        bankAccountNumber = "",
+        bankAccountName = ""
+      } = body;
+
+      if (!fullName || !email || !phone) {
+        return Response.json(
+          { error: "fullName, email, and phone are required for recruiter onboarding." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const [recruiter] = await sql`
+        INSERT INTO recruiter_agents (
+          full_name, agency_name, email, phone, location, specialization,
+          bank_name, bank_account_number, bank_account_name, status, agreed_terms
+        ) VALUES (
+          ${fullName}, ${agencyName}, ${email}, ${phone}, ${location}, ${specialization},
+          ${bankName}, ${bankAccountNumber}, ${bankAccountName}, 'active', TRUE
+        )
+        ON CONFLICT (email) DO UPDATE SET
+          full_name = EXCLUDED.full_name,
+          agency_name = EXCLUDED.agency_name,
+          phone = EXCLUDED.phone,
+          location = EXCLUDED.location,
+          specialization = EXCLUDED.specialization,
+          bank_name = EXCLUDED.bank_name,
+          bank_account_number = EXCLUDED.bank_account_number,
+          bank_account_name = EXCLUDED.bank_account_name,
+          updated_at = NOW()
+        RETURNING id, full_name, agency_name, email, phone, location, specialization, status, created_at;
+      `;
+
+      await sql`
+        INSERT INTO activity_logs (event, message, metadata)
+        VALUES (
+          'recruiter_onboarded',
+          ${`New recruiter agent registered: ${fullName} (${agencyName || 'Independent'}) - ${email}`},
+          ${JSON.stringify({ recruiterId: recruiter.id, email, phone, location })}
+        )
+      `;
+
+      const sessionToken = `ctc_recruiter_${recruiter.id.slice(0, 8)}_${Date.now()}`;
+
+      return Response.json(
+        {
+          status: "success",
+          message: "Recruiter agent onboarded successfully. You can now post listings at ₦10,000 per order.",
+          recruiter,
+          sessionToken,
+          listingFeePolicy: "₦10,000 per job listing via Paystack"
+        },
+        { status: 201, headers: corsHeaders }
+      );
+    }
+
+    // 9. GET /recruiters - List Registered Recruiter Agents
+    if (path === "/recruiters" && method === "GET") {
+      const agents = await sql`
+        SELECT id, full_name, agency_name, email, phone, location, specialization, status, total_listings_posted, created_at
+        FROM recruiter_agents
+        ORDER BY created_at DESC
+      `;
+      return Response.json({ count: agents.length, recruiters: agents }, { headers: corsHeaders });
     }
 
     return Response.json(

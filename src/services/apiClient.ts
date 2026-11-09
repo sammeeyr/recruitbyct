@@ -185,6 +185,32 @@ export const apiClient = {
       }
     },
 
+    async onboardRecruiter(data: {
+      fullName: string;
+      agencyName?: string;
+      email: string;
+      phone: string;
+      location?: string;
+      specialization?: string;
+      bankName?: string;
+      bankAccountNumber?: string;
+      bankAccountName?: string;
+    }) {
+      try {
+        const res = await fetch(`${this.atsUrl}/recruiters/onboard`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        return await res.json();
+      } catch (err: any) {
+        return {
+          status: 'error',
+          error: err.message || 'Failed to submit onboarding'
+        };
+      }
+    },
+
     async runGuaranteeAudit() {
       try {
         const res = await fetch(this.guaranteeUrl, { method: 'POST' });

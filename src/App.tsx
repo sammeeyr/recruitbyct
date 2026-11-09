@@ -7,6 +7,7 @@ import { ModalContainer } from './components/common/ModalContainer';
 // Public views
 import { CareersView } from './components/public/CareersView';
 import { TrackView } from './components/public/TrackView';
+import { RecruiterOnboardingView } from './components/recruiter/RecruiterOnboardingView';
 
 // Staff views
 import { DashboardView } from './components/staff/DashboardView';
@@ -30,6 +31,8 @@ export const AppContent: React.FC = () => {
         return <CareersView />;
       case 'track':
         return <TrackView />;
+      case 'onboard':
+        return <RecruiterOnboardingView />;
       case 'dashboard':
         return <DashboardView />;
       case 'pipeline':
