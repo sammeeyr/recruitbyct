@@ -143,7 +143,21 @@ export const CareersView: React.FC = () => {
             </div>
 
             <div className="hero-mark">
-              <Logo size={280} />
+              <img
+                src="/logo.png"
+                alt="Cube Tech Consults — Customer Excellence & Consulting"
+                style={{
+                  maxWidth: '360px',
+                  width: '100%',
+                  height: 'auto',
+                  borderRadius: '10px',
+                  boxShadow: '0 12px 36px rgba(0, 0, 0, 0.5)',
+                  border: '1px solid #26262A',
+                  display: 'block'
+                }}
+                loading="eager"
+                decoding="async"
+              />
             </div>
           </div>
         </div>

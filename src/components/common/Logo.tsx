@@ -1,17 +1,86 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface LogoProps {
   className?: string;
   size?: number | string;
+  variant?: 'full' | 'mark';
+  height?: number | string;
 }
 
-export const Logo: React.FC<LogoProps> = ({ className = 'mark', size }) => {
+export const Logo: React.FC<LogoProps> = ({
+  className = '',
+  size,
+  height = 38,
+  variant = 'mark'
+}) => {
+  const [imgError, setImgError] = useState(false);
+
+  // If full horizontal brand logo lockup is requested
+  if (variant === 'full') {
+    return (
+      <div
+        className={`brand-full-wrap ${className}`}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          background: '#090909',
+          padding: '4px 8px',
+          borderRadius: '6px',
+          border: '1px solid #1C1C1F'
+        }}
+      >
+        <img
+          src="/logo.png"
+          alt="Cube Tech Consults — Customer Excellence & Consulting"
+          style={{
+            height: height || 36,
+            width: 'auto',
+            maxWidth: '100%',
+            objectFit: 'contain',
+            display: 'block'
+          }}
+          loading="eager"
+          decoding="async"
+        />
+      </div>
+    );
+  }
+
+  // If mark/icon only
+  if (!imgError) {
+    return (
+      <img
+        src="/logo-icon.png"
+        alt="Cube Tech Consults Mark"
+        className={`mark ${className}`}
+        style={{
+          width: size || 40,
+          height: size || 40,
+          objectFit: 'contain',
+          borderRadius: '6px',
+          background: '#090909',
+          border: '1px solid #1C1C1F',
+          padding: '2px',
+          flex: 'none'
+        }}
+        onError={() => setImgError(true)}
+        loading="eager"
+        decoding="async"
+      />
+    );
+  }
+
+  // High-fidelity fallback SVG
   return (
     <svg
-      className={className}
+      className={`mark ${className}`}
       viewBox="20 20 480 500"
       aria-hidden="true"
-      style={size ? { width: size, height: 'auto' } : undefined}
+      style={{
+        width: size || 40,
+        height: size || 40,
+        flex: 'none'
+      }}
     >
       <path
         fill="#E4050A"
