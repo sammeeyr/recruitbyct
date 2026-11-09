@@ -13,6 +13,21 @@ export default defineConfig({
         },
       },
     },
+    ats: {
+      name: "Recruiter ATS Data API",
+      source: "./functions/ats.ts",
+    },
+    guarantee: {
+      name: "Placement Guarantee Cron",
+      source: "./functions/guarantee.ts",
+    },
+  },
+  triggers: {
+    nightlyGuarantee: {
+      type: "schedule",
+      function: "guarantee",
+      cron: "0 0 * * *",
+    },
   },
   // Branch policy: per-branch tuning
   branch: (branch) => {
