@@ -239,19 +239,14 @@ export const CV_MAX_BYTES = 5 * 1024 * 1024; // 5MB
 export const CV_ALLOWED_MIME = [
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/msword'
+  'application/msword',
+  'application/vnd.ms-word'
 ];
 
 export const validateCvFile = (name: string, size: number, type?: string): string => {
   const ext = (name.split('.').pop() || '').toLowerCase();
-  if (ext === 'doc') {
-    return 'Old .doc files are not accepted. Save your CV as PDF or DOCX and upload it again.';
-  }
-  if (!['pdf', 'docx'].includes(ext)) {
-    return `Only PDF or DOCX files are accepted. This file is .${ext}.`;
-  }
-  if (type && !CV_ALLOWED_MIME.includes(type)) {
-    return `This file says it is a ${ext.toUpperCase()} but its contents do not match. Export it again as a real PDF or DOCX.`;
+  if (!['pdf', 'docx', 'doc'].includes(ext)) {
+    return `Only PDF, DOCX, or DOC files are accepted. This file is .${ext}.`;
   }
   if (!size) {
     return 'This file is empty. Choose your CV again.';

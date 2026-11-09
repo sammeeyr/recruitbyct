@@ -1,12 +1,13 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatNaira, prettyKey } from '../../utils/helpers';
-import { Check, X } from 'lucide-react';
+import { Check, X, Edit2, UploadCloud } from 'lucide-react';
 
 export const JobOrderModal: React.FC = () => {
   const {
     modal,
     closeModal,
+    openModal,
     jobs,
     clients,
     approveJobScorecard,
@@ -152,12 +153,30 @@ export const JobOrderModal: React.FC = () => {
         </label>
       </div>
 
-      <div className="row" style={{ marginTop: '22px', gap: '8px' }}>
+      <div className="row" style={{ marginTop: '22px', gap: '8px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => openModal({ type: 'editjob', id: job.id })}
+          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+        >
+          <Edit2 size={13} /> Edit Role (AI Polish)
+        </button>
+
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => openModal({ type: 'resume-import', jobId: job.id })}
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--yellow)' }}
+        >
+          <UploadCloud size={13} /> Screen Resumes
+        </button>
+
         {job.approved ? (
           <>
             <button
               type="button"
-              className="btn primary"
+              className="btn primary sm"
               onClick={handleOpenPipeline}
             >
               Open pipeline

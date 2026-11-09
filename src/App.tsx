@@ -1,6 +1,5 @@
 import React from 'react';
 import { useApp } from './context/AppContext';
-import { TopStrip } from './components/common/TopStrip';
 import { Toast } from './components/common/Toast';
 import { ModalContainer } from './components/common/ModalContainer';
 
@@ -58,7 +57,6 @@ export const AppContent: React.FC = () => {
 
   return (
     <>
-      <TopStrip />
       <div id="app">{renderActiveView()}</div>
       <ModalContainer />
       <Toast />

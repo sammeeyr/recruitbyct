@@ -37,8 +37,9 @@ import {
 import confetti from 'canvas-confetti';
 
 interface ModalState {
-  type: 'job' | 'app' | 'cand' | 'jo' | 'reject' | 'newjob';
+  type: 'job' | 'app' | 'cand' | 'jo' | 'reject' | 'newjob' | 'editjob' | 'aidraft' | 'resume-import' | 'linkedin-jobs';
   id?: string;
+  jobId?: string;
   mode?: 'detail' | 'apply' | 'gform' | 'done';
   ref?: string;
   contact?: string;
@@ -111,6 +112,10 @@ interface AppContextType {
     minYears: number;
     closes: string;
   }) => void;
+  createJobOrder: (job: JobOrder) => void;
+  updateJobOrder: (jobId: string, updates: Partial<JobOrder>) => void;
+  deleteJobOrder: (jobId: string) => void;
+  importBatchCandidates: (jobId: string, candidatesList: any[]) => void;
   approveJobScorecard: (jobId: string) => void;
   updateJobListing: (jobId: string, updates: Partial<JobOrder['listing']>) => void;
   updateJobState: (jobId: string, state: JobOrder['state']) => void;
@@ -849,6 +854,157 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('Scorecard drafted. Review it and approve to publish.');
   };
 
+  // 1. Create a job order (manual or AI generated)
+  const createJobOrder = (newJob: JobOrder) => {
+    setJobs(prev => [newJob, ...prev]);
+    fetch(`${NEON_ATS_API}/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: newJob.title,
+        location: newJob.location,
+        workType: newJob.type,
+        category: newJob.category,
+        salaryMin: newJob.salary[0],
+        salaryMax: newJob.salary[1],
+        summary: newJob.summary,
+        recruiterEmail: newJob.recruiterEmail || 'recruiter@cubetechconsults.com',
+        duties: newJob.duties,
+        mustHaveSkills: newJob.must,
+        niceToHaveSkills: newJob.nice
+      })
+    }).catch(e => console.warn('[Neon Sync] Create job notice:', e));
+    logActivity(`Created job order: ${newJob.title}`);
+    showToast(`Job role '${newJob.title}' created.`);
+  };
+
+  // 2. Update existing job order (Admin/Recruiter Edit + AI Polish)
+  const updateJobOrder = (jobId: string, updates: Partial<JobOrder>) => {
+    setJobs(prev =>
+      prev.map(j => {
+        if (j.id !== jobId) return j;
+        return { ...j, ...updates };
+      })
+    );
+
+    // Live sync to Neon Postgres ATS API
+    fetch(`${NEON_ATS_API}/jobs`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: jobId,
+        title: updates.title,
+        location: updates.location,
+        workType: updates.type,
+        category: updates.category,
+        salaryMin: updates.salary ? updates.salary[0] : undefined,
+        salaryMax: updates.salary ? updates.salary[1] : undefined,
+        summary: updates.summary,
+        state: updates.state,
+        approved: updates.approved,
+        isPublished: updates.listing?.published,
+        isConfidential: updates.listing?.confidential,
+        showSalary: updates.listing?.showSalary,
+        duties: updates.duties,
+        mustHaveSkills: updates.must,
+        niceToHaveSkills: updates.nice
+      })
+    }).catch(e => console.warn('[Neon Sync] Update job notice:', e));
+
+    const j = jobs.find(x => x.id === jobId);
+    logActivity(`Updated job order: ${updates.title || j?.title || jobId}`);
+    showToast(`Job '${updates.title || j?.title}' updated successfully.`);
+  };
+
+  // 3. Delete job order
+  const deleteJobOrder = (jobId: string) => {
+    const target = jobs.find(j => j.id === jobId);
+    setJobs(prev => prev.filter(j => j.id !== jobId));
+    setApplications(prev => prev.filter(a => a.jobId !== jobId));
+
+    // Live sync deletion to Neon Postgres ATS API
+    fetch(`${NEON_ATS_API}/jobs?id=${jobId}`, {
+      method: 'DELETE'
+    }).catch(e => console.warn('[Neon Sync] Delete job notice:', e));
+
+    if (target) logActivity(`Deleted job order: ${target.title}`);
+    showToast(`Job order '${target?.title || jobId}' deleted.`);
+  };
+
+  // 4. Batch import shortlisted candidates from Resume Scanner
+  const importBatchCandidates = (jobId: string, candidatesList: any[]) => {
+    const targetJob = jobs.find(j => j.id === jobId);
+    const newCandidates: Candidate[] = [];
+    const newApps: Application[] = [];
+
+    candidatesList.forEach(item => {
+      const candId = nextId('k');
+      const candidateObj: Candidate = {
+        id: candId,
+        name: item.fullName || item.name,
+        headline: `${item.skills?.[0] || 'Applicant'} · Shortlisted by AI`,
+        loc: item.location || 'Abuja',
+        years: Number(item.yearsExperience || item.years) || 3,
+        skills: Array.isArray(item.skills) ? item.skills : ['Customer Service'],
+        sal: Number(item.expectedSalary || item.sal) || (targetJob ? Math.round((targetJob.salary[0] + targetJob.salary[1]) / 2) : 350000),
+        avail: 0,
+        verified: addDays(0),
+        drive: 'synced',
+        email: item.email,
+        phone: item.phone || 'N/A'
+      };
+      newCandidates.push(candidateObj);
+
+      if (targetJob) {
+        const ref = generateRefCode();
+        const app: Application = {
+          id: nextId('a'),
+          ref,
+          jobId: targetJob.id,
+          candId: candidateObj.id,
+          stage: 'shortlisted',
+          applied: new Date().toISOString(),
+          updated: new Date().toISOString(),
+          source: 'Upload',
+          answers: { ko1: 'yes', ko2: 'yes', ko3: 'yes' },
+          file: item.resumeFileName || `${candidateObj.name.replace(/\s+/g, '_')}_CV.pdf`,
+          notes: `Batch Shortlisted by AI (Fit Score: ${item.fitScore || 85}%). Highlights: ${item.highlights || 'Meets criteria'}`,
+          revealed: false
+        };
+        newApps.push(app);
+      }
+    });
+
+    setCandidates(prev => [...newCandidates, ...prev]);
+    if (newApps.length > 0) {
+      setApplications(prev => [...newApps, ...prev]);
+    }
+
+    // Live sync batch to Neon Postgres
+    fetch(`${NEON_ATS_API}/candidates/batch-import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: targetJob?.id,
+        candidates: candidatesList.map(c => ({
+          fullName: c.fullName || c.name,
+          email: c.email,
+          phone: c.phone,
+          location: c.location,
+          yearsExperience: c.yearsExperience || c.years,
+          skills: c.skills,
+          expectedSalary: c.expectedSalary || c.sal,
+          resumeFileName: c.resumeFileName || `${(c.fullName || c.name).replace(/\s+/g, '_')}_CV.pdf`,
+          fitScore: c.fitScore || 85,
+          notes: c.highlights || 'Shortlisted via AI scan'
+        }))
+      })
+    }).catch(e => console.warn('[Neon Sync] Batch import notice:', e));
+
+    logActivity(`Imported ${candidatesList.length} shortlisted candidates${targetJob ? ` for ${targetJob.title}` : ''}`);
+    showToast(`Successfully imported ${candidatesList.length} candidates into pipeline.`);
+  };
+
   // Scorecard approval
   const approveJobScorecard = (jobId: string) => {
     setJobs(prev =>
@@ -1206,6 +1362,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         moveApplication,
         submitApplication,
         draftNewJobOrder,
+        createJobOrder,
+        updateJobOrder,
+        deleteJobOrder,
+        importBatchCandidates,
         approveJobScorecard,
         updateJobListing,
         updateJobState,

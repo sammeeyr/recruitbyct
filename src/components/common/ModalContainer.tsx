@@ -8,6 +8,9 @@ import { ApplicationDetailModal } from '../staff/ApplicationDetailModal';
 import { CandidateModal } from '../staff/CandidateModal';
 import { JobOrderModal } from '../staff/JobOrderModal';
 import { NewJobOrderModal } from '../staff/NewJobOrderModal';
+import { EditJobOrderModal } from '../staff/EditJobOrderModal';
+import { ResumeBatchScreeningModal } from '../staff/ResumeBatchScreeningModal';
+import { LinkedInJobsModal } from '../staff/LinkedInJobsModal';
 import { RejectMessageModal } from '../staff/RejectMessageModal';
 
 export const ModalContainer: React.FC = () => {
@@ -36,7 +39,13 @@ export const ModalContainer: React.FC = () => {
 
   if (!modal) return null;
 
-  const isCentered = modal.type === 'reject' || modal.type === 'newjob';
+  const isCentered =
+    modal.type === 'reject' ||
+    modal.type === 'newjob' ||
+    modal.type === 'aidraft' ||
+    modal.type === 'editjob' ||
+    modal.type === 'resume-import' ||
+    modal.type === 'linkedin-jobs';
 
   return (
     <div
@@ -52,6 +61,11 @@ export const ModalContainer: React.FC = () => {
         role="dialog"
         aria-modal="true"
         aria-label="Modal dialog"
+        style={
+          modal.type === 'resume-import' || modal.type === 'linkedin-jobs' || modal.type === 'editjob'
+            ? { maxWidth: '880px', width: '92%' }
+            : undefined
+        }
         onClick={e => e.stopPropagation()}
       >
         {modal.type === 'job' && modal.mode === 'apply' && <ApplyModal />}
@@ -63,7 +77,10 @@ export const ModalContainer: React.FC = () => {
         {modal.type === 'app' && <ApplicationDetailModal />}
         {modal.type === 'cand' && <CandidateModal />}
         {modal.type === 'jo' && <JobOrderModal />}
-        {modal.type === 'newjob' && <NewJobOrderModal />}
+        {(modal.type === 'newjob' || modal.type === 'aidraft') && <NewJobOrderModal />}
+        {modal.type === 'editjob' && <EditJobOrderModal />}
+        {modal.type === 'resume-import' && <ResumeBatchScreeningModal />}
+        {modal.type === 'linkedin-jobs' && <LinkedInJobsModal />}
         {modal.type === 'reject' && <RejectMessageModal />}
       </div>
     </div>

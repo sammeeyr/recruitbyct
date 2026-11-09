@@ -1,12 +1,13 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { Logo } from '../common/Logo';
+import { Sun, Moon, ArrowRight } from 'lucide-react';
 
 export const PublicHeader: React.FC = () => {
-  const { view, navigate } = useApp();
+  const { view, navigate, theme, toggleTheme } = useApp();
 
   return (
-    <header className="hdr gut">
+    <header className="hdr gut" style={{ position: 'sticky', top: 0, zIndex: 40, backdropFilter: 'blur(12px)' }}>
       <div className="inner">
         <a
           className="brand"
@@ -24,7 +25,7 @@ export const PublicHeader: React.FC = () => {
           </span>
         </a>
 
-        <nav aria-label="Main navigation">
+        <nav aria-label="Main navigation" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             type="button"
             onClick={() => navigate('careers')}
@@ -46,6 +47,35 @@ export const PublicHeader: React.FC = () => {
             style={{ fontWeight: 600, color: 'var(--red-text)' }}
           >
             Recruiter partner
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('client-portal')}
+            aria-current={view === 'client-portal' ? 'page' : undefined}
+          >
+            Client portal
+          </button>
+
+          <div style={{ width: '1px', height: '18px', background: 'var(--line)', margin: '0 4px' }} />
+
+          <button
+            type="button"
+            onClick={() => navigate('dashboard')}
+            className="btn ghost sm"
+            style={{ fontSize: '13px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            Recruiter ATS <ArrowRight size={13} />
+          </button>
+
+          <button
+            type="button"
+            className="iconbtn"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            style={{ marginLeft: '4px' }}
+          >
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
           </button>
         </nav>
       </div>

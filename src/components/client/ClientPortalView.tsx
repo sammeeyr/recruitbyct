@@ -11,7 +11,7 @@ import {
   STAGE_LABELS
 } from '../../utils/helpers';
 import { Application } from '../../types';
-import { Lock } from 'lucide-react';
+import { Lock, Sun, Moon, ArrowLeft } from 'lucide-react';
 import { KNOCKOUT_QUESTIONS } from '../../data/mockData';
 
 export const ClientPortalView: React.FC = () => {
@@ -26,7 +26,10 @@ export const ClientPortalView: React.FC = () => {
     clientToggleHold,
     clientPass,
     clientMakeOffer,
-    clientApproveOffer
+    clientApproveOffer,
+    navigate,
+    theme,
+    toggleTheme
   } = useApp();
 
   const [activeRejectAppId, setActiveRejectAppId] = useState<string | null>(null);
@@ -203,12 +206,12 @@ export const ClientPortalView: React.FC = () => {
             </span>
           </div>
 
-          <div className="row" style={{ gap: '10px' }}>
+          <div className="row" style={{ gap: '12px', alignItems: 'center' }}>
             <span className="muted sm">Previewing as</span>
             <select
               value={selectedClientId}
               onChange={e => setSelectedClientId(e.target.value)}
-              style={{ width: 'auto', minWidth: '220px' }}
+              style={{ width: 'auto', minWidth: '200px' }}
             >
               {clients.map(c => (
                 <option key={c.id} value={c.id}>
@@ -216,6 +219,25 @@ export const ClientPortalView: React.FC = () => {
                 </option>
               ))}
             </select>
+
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => navigate('careers')}
+              style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              Careers Site
+            </button>
+
+            <button
+              type="button"
+              className="iconbtn"
+              onClick={toggleTheme}
+              aria-label="Switch colour theme"
+              title="Switch colour theme"
+            >
+              {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
           </div>
         </div>
       </div>
