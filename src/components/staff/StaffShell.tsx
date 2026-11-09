@@ -17,7 +17,8 @@ import {
   ExternalLink,
   ShieldCheck,
   UserCheck,
-  LogOut
+  LogOut,
+  Sliders
 } from 'lucide-react';
 
 interface StaffShellProps {
@@ -44,7 +45,8 @@ export const StaffShell: React.FC<StaffShellProps> = ({
     ['clients', <Building size={18} key="c" />, 'Clients'],
     ['placements', <Award size={18} key="pl" />, 'Placements'],
     ['intake', <Inbox size={18} key="i" />, 'Intake'],
-    ['drive-sync', <Cloud size={18} key="dr" />, 'Drive sync']
+    ['drive-sync', <Cloud size={18} key="dr" />, 'Drive sync'],
+    ['admin', <Sliders size={18} key="adm" />, 'Admin panel']
   ];
 
   const pendingApprovalsCount = approvals.length;

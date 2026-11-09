@@ -26,7 +26,8 @@ export type View =
   | 'placements'
   | 'drive-sync'
   | 'intake'
-  | 'client-portal';
+  | 'client-portal'
+  | 'admin';
 
 export interface Client {
   id: string;

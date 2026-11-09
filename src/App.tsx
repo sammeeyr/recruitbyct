@@ -19,6 +19,7 @@ import { ClientsView } from './components/staff/ClientsView';
 import { PlacementsView } from './components/staff/PlacementsView';
 import { IntakeView } from './components/staff/IntakeView';
 import { DriveSyncView } from './components/staff/DriveSyncView';
+import { AdminControlPanelView } from './components/admin/AdminControlPanelView';
 
 // Client view
 import { ClientPortalView } from './components/client/ClientPortalView';
@@ -53,6 +54,8 @@ export const AppContent: React.FC = () => {
         return canAccessAts ? <IntakeView /> : <RecruiterLoginView />;
       case 'drive-sync':
         return canAccessAts ? <DriveSyncView /> : <RecruiterLoginView />;
+      case 'admin':
+        return canAccessAts ? <AdminControlPanelView /> : <RecruiterLoginView />;
       case 'client-portal':
         return <ClientPortalView />;
       default:

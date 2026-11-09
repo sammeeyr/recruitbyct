@@ -696,11 +696,52 @@ export default async function handler(req: Request): Promise<Response> {
     // 9. GET /recruiters - List Registered Recruiter Agents
     if (path === "/recruiters" && method === "GET") {
       const agents = await sql`
-        SELECT id, full_name, agency_name, email, phone, location, specialization, status, total_listings_posted, created_at
+        SELECT 
+          id, full_name, agency_name, email, phone, location, specialization,
+          bank_name, bank_account_number, bank_account_name, status, agreed_terms,
+          total_listings_posted, created_at, updated_at
         FROM recruiter_agents
         ORDER BY created_at DESC
       `;
       return Response.json({ count: agents.length, recruiters: agents }, { headers: corsHeaders });
+    }
+
+    // 9b. PATCH /recruiters/status - Approve or Suspend Recruiter Partner
+    if (path === "/recruiters/status" && (method === "PATCH" || method === "POST")) {
+      const body = await req.json();
+      const { recruiterId, status } = body;
+
+      if (!recruiterId || !["active", "suspended", "pending"].includes(status)) {
+        return Response.json(
+          { error: "recruiterId and valid status ('active', 'suspended', 'pending') required." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const [updated] = await sql`
+        UPDATE recruiter_agents
+        SET status = ${status}, updated_at = NOW()
+        WHERE id = ${recruiterId}
+        RETURNING id, full_name, email, status, updated_at;
+      `;
+
+      if (!updated) {
+        return Response.json({ error: "Recruiter not found." }, { status: 404, headers: corsHeaders });
+      }
+
+      await sql`
+        INSERT INTO activity_logs (event, message, metadata)
+        VALUES (
+          'recruiter_status_updated',
+          ${`Recruiter ${updated.full_name} status updated to ${status}`},
+          ${JSON.stringify({ recruiterId, status, at: new Date().toISOString() })}
+        )
+      `;
+
+      return Response.json(
+        { status: "success", message: `Recruiter status updated to ${status}`, recruiter: updated },
+        { headers: corsHeaders }
+      );
     }
 
     // 10. GET /linkedin/jobs - Retrieve Managed Jobs on LinkedIn
@@ -805,6 +846,32 @@ export default async function handler(req: Request): Promise<Response> {
         },
         { headers: corsHeaders }
       );
+    }
+
+    // 11. GET /admin/payments - List Paystack ₦10k Listing Payments
+    if (path === "/admin/payments" && method === "GET") {
+      const payments = await sql`
+        SELECT 
+          lp.id, lp.job_id, lp.reference, lp.recruiter_email, lp.amount, lp.currency,
+          lp.channel, lp.status, lp.paid_at, lp.created_at,
+          jo.title as job_title
+        FROM listing_payments lp
+        LEFT JOIN job_orders jo ON lp.job_id = jo.id
+        ORDER BY lp.created_at DESC
+        LIMIT 100;
+      `;
+      return Response.json({ count: payments.length, payments }, { headers: corsHeaders });
+    }
+
+    // 12. GET /admin/logs - Platform Audit Trail Logs
+    if (path === "/admin/logs" && method === "GET") {
+      const logs = await sql`
+        SELECT id, event, message, metadata, created_at
+        FROM activity_logs
+        ORDER BY created_at DESC
+        LIMIT 100;
+      `;
+      return Response.json({ count: logs.length, logs }, { headers: corsHeaders });
     }
 
     return Response.json(

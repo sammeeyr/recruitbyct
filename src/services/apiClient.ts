@@ -227,6 +227,46 @@ export const apiClient = {
       }
     },
 
+    async getAdminRecruiters() {
+      try {
+        const res = await fetch(`${this.atsUrl}/recruiters`);
+        return await res.json();
+      } catch {
+        return { count: 0, recruiters: [] };
+      }
+    },
+
+    async updateRecruiterStatus(recruiterId: string, status: 'active' | 'suspended' | 'pending') {
+      try {
+        const res = await fetch(`${this.atsUrl}/recruiters/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recruiterId, status })
+        });
+        return await res.json();
+      } catch (err: any) {
+        return { status: 'error', error: err.message };
+      }
+    },
+
+    async getAdminPayments() {
+      try {
+        const res = await fetch(`${this.atsUrl}/admin/payments`);
+        return await res.json();
+      } catch {
+        return { count: 0, payments: [] };
+      }
+    },
+
+    async getAdminLogs() {
+      try {
+        const res = await fetch(`${this.atsUrl}/admin/logs`);
+        return await res.json();
+      } catch {
+        return { count: 0, logs: [] };
+      }
+    },
+
     async runGuaranteeAudit() {
       try {
         const res = await fetch(this.guaranteeUrl, { method: 'POST' });

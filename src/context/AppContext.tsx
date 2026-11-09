@@ -160,6 +160,7 @@ export function pathToView(pathname: string): View {
   if (clean === '/dashboard/placements' || clean === '/placements') return 'placements';
   if (clean === '/dashboard/intake' || clean === '/intake') return 'intake';
   if (clean === '/dashboard/drive-sync' || clean === '/drive-sync') return 'drive-sync';
+  if (clean === '/admin' || clean === '/dashboard/admin' || clean === '/control-panel') return 'admin';
   return 'careers';
 }
 
@@ -173,6 +174,8 @@ export function viewToPath(view: View): string {
       return '/onboard';
     case 'login':
       return '/login';
+    case 'admin':
+      return '/admin';
     case 'dashboard':
       return '/dashboard';
     case 'pipeline':
@@ -207,6 +210,7 @@ const VIEW_SURFACE_MAP: Record<View, Surface> = {
   track: 'public',
   onboard: 'public',
   login: 'public',
+  admin: 'staff',
   dashboard: 'staff',
   pipeline: 'staff',
   pool: 'staff',
