@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatNaira, prettyKey } from '../../utils/helpers';
+import { RichTextRenderer } from '../common/RichTextRenderer';
 import { Check, X, Edit2, UploadCloud } from 'lucide-react';
 
 export const JobOrderModal: React.FC = () => {
@@ -118,6 +119,22 @@ export const JobOrderModal: React.FC = () => {
           </div>
         </li>
       </ul>
+
+      {/* Full Job Description & Scope (Supports up to 10,000 words with formatting) */}
+      <div style={{ margin: '18px 0', padding: '14px', background: 'var(--surface-2)', borderRadius: '8px', border: '1px solid var(--line)' }}>
+        <div className="row spread" style={{ alignItems: 'center', marginBottom: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '15px' }}>Job Description & Scope</h3>
+          <button
+            type="button"
+            className="linkbtn xs"
+            onClick={() => openModal({ type: 'editjob', id: job.id })}
+            style={{ color: 'var(--red-text)', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            <Edit2 size={12} /> Edit Full Description
+          </button>
+        </div>
+        <RichTextRenderer content={job.summary} />
+      </div>
 
       <h3>Public listing</h3>
       <div className="field">

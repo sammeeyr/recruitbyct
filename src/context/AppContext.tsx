@@ -8,6 +8,7 @@ import {
   Candidate,
   CareersFilter,
   Client,
+  CriterionKey,
   DriveLogItem,
   JobOrder,
   Placement,
@@ -59,6 +60,7 @@ interface ModalState {
     | 'ai-interview-result';
   id?: string;
   jobId?: string;
+  clientId?: string;
   mode?: 'detail' | 'apply' | 'gform' | 'done';
   ref?: string;
   contact?: string;
@@ -130,7 +132,12 @@ interface AppContextType {
     maxPay: number;
     minYears: number;
     closes: string;
-  }) => void;
+    summary?: string;
+    autoApprove?: boolean;
+    duties?: string[];
+    must?: CriterionKey[];
+    nice?: CriterionKey[];
+  }) => Promise<JobOrder>;
   createJobOrder: (job: JobOrder) => void;
   updateJobOrder: (jobId: string, updates: Partial<JobOrder>) => Promise<{ success: boolean; error?: string }>;
   deleteJobOrder: (jobId: string) => void;
@@ -833,7 +840,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Draft a new job order with AI Scorecard
-  const draftNewJobOrder = ({
+  const draftNewJobOrder = async ({
     clientId,
     title,
     loc,
@@ -841,7 +848,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     minPay,
     maxPay,
     minYears,
-    closes
+    closes,
+    summary,
+    autoApprove,
+    duties,
+    must,
+    nice
   }: {
     clientId: string;
     title: string;
@@ -851,7 +863,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     maxPay: number;
     minYears: number;
     closes: string;
-  }) => {
+    summary?: string;
+    autoApprove?: boolean;
+    duties?: string[];
+    must?: CriterionKey[];
+    nice?: CriterionKey[];
+  }): Promise<JobOrder> => {
     const kwMap: Record<string, [string, string[]][]> = {
       Technology: [
         ['Core programming language', ['node.js', 'python', 'java', 'typescript', 'react']],
@@ -887,81 +904,120 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ['CRM or ERP systems', ['crm', 'erp'], 10]
     ];
 
+    const isApproved = Boolean(autoApprove);
     const newJob: JobOrder = {
       id: nextId('jo'),
-      clientId,
+      clientId: clientId || 'c1',
       title,
       location: loc,
       type: 'Full-time',
       category: cat,
       salary: [minPay, maxPay],
       closes,
-      state: 'draft',
-      approved: false,
+      state: isApproved ? 'open' : 'draft',
+      approved: isApproved,
       minYears,
       listing: {
-        published: false,
-        confidential: true,
+        published: isApproved,
+        confidential: false,
         showSalary: true
       },
-      summary: `Role summary drafted by AI from the client intake brief for ${title}. Review duties and requirements before publishing.`,
-      duties: [
-        'Deliver the core objectives and project milestones agreed with the client',
-        'Lead or collaborate with cross-functional teams day to day',
-        'Produce weekly status reports on KPIs and blockers',
-        'Uphold company standards and service levels'
-      ],
-      must: mustSpecs.map(([label, keys]) => ({ label, keys })),
+      summary:
+        summary ||
+        `Role summary for ${title} at Cube Tech Consults. This position is responsible for delivering high-impact operational deliverables, cross-functional team coordination, and strategic client goals.`,
+      duties:
+        duties && duties.length > 0
+          ? duties
+          : [
+              'Deliver the core objectives and project milestones agreed with the client',
+              'Lead or collaborate with cross-functional teams day to day',
+              'Produce weekly status reports on KPIs and blockers',
+              'Uphold company standards and service levels'
+            ],
+      must: must && must.length > 0 ? must : mustSpecs.map(([label, keys]) => ({ label, keys })),
       nice: niceSpecs.map(([label, keys, w]) => ({ label, keys, w })),
-      listingFeePaid: false,
+      listingFeePaid: isApproved,
       listingFeeAmount: 10000,
+      listingFeeRef: isApproved ? 'PLATFORM_ADMIN_CREATION' : undefined,
       recruiterEmail: 'recruiter@cubetechconsults.com'
     };
 
-    setJobs(prev => [newJob, ...prev]);
+    const nextJobs = [newJob, ...jobs];
+    setJobs(nextJobs);
+    saveStorage('jobs', nextJobs);
 
     // Live sync draft job to Neon Postgres backend
-    fetch(`${NEON_ATS_API}/jobs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title,
-        location: loc,
-        workType: 'Full-time',
-        category: cat,
-        salaryMin: minPay,
-        salaryMax: maxPay,
-        recruiterEmail: 'recruiter@cubetechconsults.com',
-        duties: newJob.duties,
-        mustHaveSkills: newJob.must,
-        niceToHaveSkills: newJob.nice
-      })
-    }).catch(e => console.warn('[Neon Sync] Job creation notice:', e));
-    logActivity(`Scorecard drafted for ${title}`);
+    try {
+      await fetch(`${NEON_ATS_API}/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: newJob.id,
+          clientId: newJob.clientId,
+          title: newJob.title,
+          location: newJob.location,
+          workType: newJob.type,
+          category: newJob.category,
+          salaryMin: newJob.salary[0],
+          salaryMax: newJob.salary[1],
+          summary: newJob.summary,
+          recruiterEmail: newJob.recruiterEmail,
+          duties: newJob.duties,
+          mustHaveSkills: newJob.must,
+          niceToHaveSkills: newJob.nice,
+          approved: newJob.approved,
+          isPublished: newJob.listing.published,
+          state: newJob.state,
+          listingFeePaid: newJob.listingFeePaid,
+          listingFeeAmount: newJob.listingFeeAmount,
+          listingFeeRef: newJob.listingFeeRef
+        })
+      });
+    } catch (e) {
+      console.warn('[Neon Sync] Job creation notice:', e);
+    }
+
+    logActivity(`Created job role for ${newJob.title}`);
+    showToast(isApproved ? `Job '${title}' published live for client.` : `Scorecard drafted for '${title}'.`);
     setModal({ type: 'jo', id: newJob.id });
-    showToast('Scorecard drafted. Review it and approve to publish.');
+    return newJob;
   };
 
   // 1. Create a job order (manual or AI generated)
-  const createJobOrder = (newJob: JobOrder) => {
-    setJobs(prev => [newJob, ...prev]);
-    fetch(`${NEON_ATS_API}/jobs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: newJob.title,
-        location: newJob.location,
-        workType: newJob.type,
-        category: newJob.category,
-        salaryMin: newJob.salary[0],
-        salaryMax: newJob.salary[1],
-        summary: newJob.summary,
-        recruiterEmail: newJob.recruiterEmail || 'recruiter@cubetechconsults.com',
-        duties: newJob.duties,
-        mustHaveSkills: newJob.must,
-        niceToHaveSkills: newJob.nice
-      })
-    }).catch(e => console.warn('[Neon Sync] Create job notice:', e));
+  const createJobOrder = async (newJob: JobOrder) => {
+    const nextJobs = [newJob, ...jobs];
+    setJobs(nextJobs);
+    saveStorage('jobs', nextJobs);
+
+    try {
+      await fetch(`${NEON_ATS_API}/jobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: newJob.id,
+          clientId: newJob.clientId,
+          title: newJob.title,
+          location: newJob.location,
+          workType: newJob.type,
+          category: newJob.category,
+          salaryMin: newJob.salary[0],
+          salaryMax: newJob.salary[1],
+          summary: newJob.summary,
+          recruiterEmail: newJob.recruiterEmail || 'recruiter@cubetechconsults.com',
+          duties: newJob.duties,
+          mustHaveSkills: newJob.must,
+          niceToHaveSkills: newJob.nice,
+          approved: newJob.approved,
+          isPublished: newJob.listing.published,
+          state: newJob.state,
+          listingFeePaid: newJob.listingFeePaid,
+          listingFeeAmount: newJob.listingFeeAmount,
+          listingFeeRef: newJob.listingFeeRef
+        })
+      });
+    } catch (e) {
+      console.warn('[Neon Sync] Create job notice:', e);
+    }
     logActivity(`Created job order: ${newJob.title}`);
     showToast(`Job role '${newJob.title}' created.`);
   };

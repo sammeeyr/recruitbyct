@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 2. CLIENTS TABLE
 CREATE TABLE IF NOT EXISTS clients (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id VARCHAR(64) PRIMARY KEY,
     slug VARCHAR(64) UNIQUE NOT NULL,
     name VARCHAR(255) NOT NULL,
     industry VARCHAR(128) NOT NULL,
@@ -22,8 +22,8 @@ CREATE TABLE IF NOT EXISTS clients (
 
 -- 3. JOB ORDERS TABLE
 CREATE TABLE IF NOT EXISTS job_orders (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    id VARCHAR(64) PRIMARY KEY,
+    client_id VARCHAR(64) REFERENCES clients(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
     location VARCHAR(128) NOT NULL DEFAULT 'Abuja',
     work_type VARCHAR(64) NOT NULL DEFAULT 'Full-time',
@@ -31,13 +31,18 @@ CREATE TABLE IF NOT EXISTS job_orders (
     salary_min NUMERIC(12, 2) NOT NULL DEFAULT 300000,
     salary_max NUMERIC(12, 2) NOT NULL DEFAULT 450000,
     min_years_experience INTEGER NOT NULL DEFAULT 3,
-    closes_at DATE NOT NULL,
+    closes_at DATE NOT NULL DEFAULT (CURRENT_DATE + INTERVAL '30 days'),
     state VARCHAR(32) NOT NULL DEFAULT 'draft' CHECK (state IN ('draft', 'open', 'filled', 'closed')),
     approved BOOLEAN NOT NULL DEFAULT FALSE,
     is_published BOOLEAN NOT NULL DEFAULT FALSE,
     is_confidential BOOLEAN NOT NULL DEFAULT TRUE,
     show_salary BOOLEAN NOT NULL DEFAULT TRUE,
-    summary TEXT,
+    summary TEXT, -- Supports comprehensive job description & specifications up to 10,000 words
+    recruiter_email VARCHAR(255),
+    recruiter_name VARCHAR(255),
+    listing_fee_paid BOOLEAN NOT NULL DEFAULT FALSE,
+    listing_fee_ref VARCHAR(128),
+    listing_fee_amount NUMERIC(12, 2) NOT NULL DEFAULT 10000.00,
     duties JSONB NOT NULL DEFAULT '[]'::jsonb,
     must_have_skills JSONB NOT NULL DEFAULT '[]'::jsonb,
     nice_to_have_skills JSONB NOT NULL DEFAULT '[]'::jsonb,

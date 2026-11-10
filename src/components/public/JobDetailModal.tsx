@@ -2,6 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { StatusChip } from '../common/StatusChip';
 import { daysDiff, formatDate, formatNaira, getJobStatus } from '../../utils/helpers';
+import { RichTextRenderer } from '../common/RichTextRenderer';
 import { MapPin, X } from 'lucide-react';
 
 export const JobDetailModal: React.FC = () => {
@@ -60,7 +61,11 @@ export const JobDetailModal: React.FC = () => {
         </li>
       </ul>
 
-      <p>{job.summary}</p>
+      {/* Rich Job Description (supports up to 10,000 words with formatting) */}
+      <div style={{ margin: '18px 0', padding: '14px', background: 'var(--surface-2)', borderRadius: '8px', border: '1px solid var(--line)' }}>
+        <h3 style={{ margin: '0 0 10px', fontSize: '15px' }}>Job Description & Overview</h3>
+        <RichTextRenderer content={job.summary} />
+      </div>
 
       <h3>What you will do</h3>
       <ul className="ul">

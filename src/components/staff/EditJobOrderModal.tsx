@@ -3,7 +3,9 @@ import { useApp } from '../../context/AppContext';
 import { JobOrder } from '../../types';
 import { CATEGORIES, LOCATIONS } from '../../data/mockData';
 import { formatNaira, addDays } from '../../utils/helpers';
-import { X, Sparkles, Plus, Trash2, CheckCircle2, AlertTriangle, Save } from 'lucide-react';
+import { RichTextEditor, MAX_JOB_DESCRIPTION_WORDS } from '../common/RichTextEditor';
+import { countWords } from '../common/RichTextRenderer';
+import { X, Sparkles, Plus, Trash2, CheckCircle2, AlertTriangle, Save, Building } from 'lucide-react';
 
 export const EditJobOrderModal: React.FC = () => {
   const { modal, closeModal, jobs, clients, updateJobOrder, deleteJobOrder } = useApp();
@@ -16,6 +18,7 @@ export const EditJobOrderModal: React.FC = () => {
   const client = clients.find(c => c.id === job.clientId);
 
   // Form State
+  const [clientId, setClientId] = useState(job.clientId);
   const [title, setTitle] = useState(job.title);
   const [location, setLocation] = useState(job.location);
   const [type, setType] = useState(job.type);
@@ -113,10 +116,16 @@ export const EditJobOrderModal: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (countWords(summary) > MAX_JOB_DESCRIPTION_WORDS) {
+      setServerError(`Job description exceeds maximum limit of ${MAX_JOB_DESCRIPTION_WORDS.toLocaleString()} words.`);
+      return;
+    }
+
     setIsSaving(true);
     setServerError(null);
 
     const result = await updateJobOrder(job.id, {
+      clientId,
       title: title.trim(),
       location,
       type,
@@ -182,6 +191,26 @@ export const EditJobOrderModal: React.FC = () => {
       </p>
 
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Client Selection */}
+        <div className="field">
+          <label htmlFor="edit-client" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Building size={14} /> Client Employer
+          </label>
+          <select
+            id="edit-client"
+            value={clientId}
+            onChange={e => setClientId(e.target.value)}
+            required
+            style={{ fontWeight: 600 }}
+          >
+            {clients.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.industry || 'Corporate'}) · {c.fee}% fee
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="field">
           <label htmlFor="edit-title">Job Title</label>
           <input
@@ -267,18 +296,15 @@ export const EditJobOrderModal: React.FC = () => {
           </div>
         </div>
 
-        <div className="field">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <label htmlFor="edit-summary">Role Summary</label>
-            <span className="xs muted">Drafted with AI assistance</span>
-          </div>
-          <textarea
-            id="edit-summary"
-            rows={3}
-            value={summary}
-            onChange={e => setSummary(e.target.value)}
-          />
-        </div>
+        {/* Full Rich Text Job Description (Up to 10,000 words) */}
+        <RichTextEditor
+          value={summary}
+          onChange={setSummary}
+          label="Comprehensive Job Description & Overview (Up to 10,000 words)"
+          placeholder="Detailed job description, responsibilities, technical requirements, benefits, and working culture..."
+          helperText="Supports rich markdown formatting (headings, bold, italic, bullet lists, numbered steps, quotes). Max 10,000 words."
+          minHeight="260px"
+        />
 
         {/* Duties Section */}
         <div className="field">

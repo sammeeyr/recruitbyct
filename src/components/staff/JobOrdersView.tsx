@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { StaffShell } from './StaffShell';
 import { StatusChip } from '../common/StatusChip';
 import { formatDate, getJobStatus, formatNaira } from '../../utils/helpers';
@@ -18,6 +19,7 @@ import { LinkedinIcon } from '../common/LinkedinIcon';
 
 export const JobOrdersView: React.FC = () => {
   const { jobs, clients, applications, openModal, deleteJobOrder, setPipeJobId, navigate } = useApp();
+  const { user } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'open' | 'draft' | 'needs-approval' | 'closed'>('all');
@@ -86,7 +88,7 @@ export const JobOrdersView: React.FC = () => {
             onClick={() => openModal({ type: 'newjob' })}
             style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
           >
-            <Plus size={15} /> New Job Order
+            <Plus size={15} /> {user.role === 'agency_admin' ? 'Create Job for Client' : 'New Job Order'}
           </button>
         </div>
       }

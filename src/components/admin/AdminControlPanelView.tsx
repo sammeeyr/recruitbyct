@@ -24,7 +24,8 @@ import {
   DollarSign,
   Download,
   Lock,
-  ArrowRight
+  ArrowRight,
+  Plus
 } from 'lucide-react';
 
 interface RecruiterRecord {
@@ -188,7 +189,15 @@ export const AdminControlPanelView: React.FC = () => {
       title="Admin Control Panel"
       sub="Master administrative portal for recruiter compliance, Paystack ₦10,000 listing fee ledger, client fees, and Neon infrastructure."
       actions={
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn primary sm"
+            onClick={() => openModal({ type: 'newjob' })}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <Plus size={14} /> Create Job for Client
+          </button>
           <button
             type="button"
             className="btn ghost sm"
@@ -337,6 +346,17 @@ export const AdminControlPanelView: React.FC = () => {
           <section className="card" style={{ padding: '20px' }}>
             <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Operational Quick Actions</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn primary sm"
+                onClick={() => openModal({ type: 'newjob' })}
+                style={{ justifyContent: 'space-between', display: 'flex', padding: '10px 14px' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={14} /> Create Recruitment Job for Client (Instant Publish)
+                </span>
+                <ArrowRight size={14} />
+              </button>
               <button
                 type="button"
                 className="btn ghost sm"
@@ -528,45 +548,81 @@ export const AdminControlPanelView: React.FC = () => {
 
       {/* TAB 4: CLIENT EMPLOYERS */}
       {activeTab === 'clients' && (
-        <div className="tbl">
-          <table>
-            <thead>
-              <tr>
-                <th>Employer Company</th>
-                <th>Industry</th>
-                <th>Primary Contact</th>
-                <th>Placement Fee Rate</th>
-                <th>Replacement Guarantee</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clients.map(c => (
-                <tr key={c.id}>
-                  <td>
-                    <b>{c.name}</b>
-                  </td>
-                  <td>{c.industry}</td>
-                  <td>{c.contact}</td>
-                  <td>
-                    <span className="chip good">{c.fee}% of Annual Base</span>
-                  </td>
-                  <td>
-                    <span className="chip">{c.guarantee} Days</span>
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button
-                      type="button"
-                      className="linkbtn xs"
-                      onClick={() => showToast(`Edit client ${c.name}`)}
-                    >
-                      Edit Terms
-                    </button>
-                  </td>
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <span className="sm muted">
+              <b>{clients.length}</b> verified corporate employer accounts
+            </span>
+            <button
+              type="button"
+              className="btn primary sm"
+              onClick={() => openModal({ type: 'newjob' })}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+            >
+              <Plus size={14} /> Create Job for Client
+            </button>
+          </div>
+
+          <div className="tbl">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employer Company</th>
+                  <th>Industry</th>
+                  <th>Primary Contact</th>
+                  <th>Active Jobs</th>
+                  <th>Placement Fee Rate</th>
+                  <th>Replacement Guarantee</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {clients.map(c => {
+                  const clientJobCount = jobs.filter(j => j.clientId === c.id).length;
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        <b>{c.name}</b>
+                        <div className="xs muted mono">{c.id}</div>
+                      </td>
+                      <td>{c.industry}</td>
+                      <td>{c.contact}</td>
+                      <td>
+                        <span className="chip sm" style={{ background: 'var(--surface-2)', color: 'var(--ink)' }}>
+                          {clientJobCount} {clientJobCount === 1 ? 'role' : 'roles'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="chip good">{c.fee}% of Annual Base</span>
+                      </td>
+                      <td>
+                        <span className="chip">{c.guarantee} Days</span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn primary sm"
+                            onClick={() => openModal({ type: 'newjob', clientId: c.id })}
+                            style={{ fontSize: '11px', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '3px' }}
+                          >
+                            <Plus size={11} /> Post Job
+                          </button>
+                          <button
+                            type="button"
+                            className="linkbtn xs"
+                            onClick={() => showToast(`Edit client ${c.name}`)}
+                          >
+                            Edit Terms
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

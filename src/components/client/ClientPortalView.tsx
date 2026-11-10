@@ -11,8 +11,9 @@ import {
   STAGE_LABELS
 } from '../../utils/helpers';
 import { Application } from '../../types';
-import { Lock, Sun, Moon, ArrowLeft, Sparkles } from 'lucide-react';
+import { Lock, Sun, Moon, ArrowLeft, Sparkles, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { KNOCKOUT_QUESTIONS } from '../../data/mockData';
+import { RichTextRenderer } from '../common/RichTextRenderer';
 
 export const ClientPortalView: React.FC = () => {
   const {
@@ -33,6 +34,13 @@ export const ClientPortalView: React.FC = () => {
   } = useApp();
 
   const [activeRejectAppId, setActiveRejectAppId] = useState<string | null>(null);
+  const [expandedJobIds, setExpandedJobIds] = useState<string[]>([]);
+
+  const toggleJobExpanded = (jobId: string) => {
+    setExpandedJobIds(prev =>
+      prev.includes(jobId) ? prev.filter(id => id !== jobId) : [...prev, jobId]
+    );
+  };
 
   const client = clients.find(c => c.id === selectedClientId) || clients[0];
   const clientJobs = jobs.filter(j => j.clientId === client.id && j.state !== 'draft');
@@ -302,11 +310,46 @@ export const ClientPortalView: React.FC = () => {
               return (
                 <section key={j.id} style={{ marginTop: '36px' }}>
                   <div className="row spread" style={{ margin: '22px 0 12px' }}>
-                    <h2 className="caps" style={{ fontSize: '28px' }}>
-                      {j.title}
-                    </h2>
-                    <StatusChip status={getJobStatus(j)} />
+                    <div>
+                      <h2 className="caps" style={{ fontSize: '28px', margin: 0 }}>
+                        {j.title}
+                      </h2>
+                      <span className="xs muted" style={{ display: 'block', marginTop: '2px' }}>
+                        {j.location} · {j.type} · Closes {j.closes}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="btn ghost sm"
+                        onClick={() => toggleJobExpanded(j.id)}
+                        style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <FileText size={13} />
+                        {expandedJobIds.includes(j.id) ? 'Hide Role Scope' : 'View Role Scope'}
+                        {expandedJobIds.includes(j.id) ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                      </button>
+                      <StatusChip status={getJobStatus(j)} />
+                    </div>
                   </div>
+
+                  {/* Expandable Rich Job Description */}
+                  {expandedJobIds.includes(j.id) && (
+                    <div
+                      style={{
+                        padding: '16px 20px',
+                        background: 'var(--surface-2)',
+                        border: '1px solid var(--line)',
+                        borderRadius: '8px',
+                        marginBottom: '16px'
+                      }}
+                    >
+                      <h4 style={{ margin: '0 0 10px', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                        Approved Role Specifications & Description
+                      </h4>
+                      <RichTextRenderer content={j.summary} />
+                    </div>
+                  )}
 
                   {submittedCandidates.length > 0 ? (
                     <div className="pack">

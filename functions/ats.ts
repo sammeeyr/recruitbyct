@@ -120,10 +120,12 @@ export default async function handler(req: Request): Promise<Response> {
       return Response.json({ count: dbClients.length, clients: dbClients }, { headers: corsHeaders });
     }
 
-    // 3. POST /jobs - Create New Job Order (Draft requiring ₦10,000 listing fee)
+    // 3. POST /jobs - Create New Job Order (Admin client creation or Recruiter draft)
     if (path === "/jobs" && method === "POST") {
       const body = await req.json();
       const {
+        id,
+        clientId = "c1",
         title,
         location = "Abuja",
         workType = "Full-time",
@@ -136,46 +138,60 @@ export default async function handler(req: Request): Promise<Response> {
         duties = [],
         mustHaveSkills = [],
         niceToHaveSkills = [],
+        approved = false,
+        isPublished = false,
+        state = approved ? "open" : "draft",
+        listingFeePaid = approved ? true : false,
+        listingFeeAmount = 10000.00,
+        listingFeeRef = approved ? "PLATFORM_ADMIN_CREATION" : null,
       } = body;
 
       if (!title) {
         return Response.json({ error: "Job title is required" }, { status: 400, headers: corsHeaders });
       }
 
-      // New listings are created as 'draft' until ₦10,000 listing fee is paid
+      const jobId = id || `jo_${Date.now()}`;
+
+      // Insert job with client_id and rich summary
       const [newJob] = await sql`
         INSERT INTO job_orders (
-          title, location, work_type, category, salary_min, salary_max,
+          id, client_id, title, location, work_type, category, salary_min, salary_max,
           summary, recruiter_email, recruiter_name, duties,
           must_have_skills, nice_to_have_skills,
-          state, approved, is_published, listing_fee_paid, listing_fee_amount
+          state, approved, is_published, listing_fee_paid, listing_fee_ref, listing_fee_amount,
+          created_at, updated_at
         ) VALUES (
-          ${title}, ${location}, ${workType}, ${category}, ${salaryMin}, ${salaryMax},
-          ${summary}, ${recruiterEmail}, ${recruiterName}, ${JSON.stringify(duties)},
-          ${JSON.stringify(mustHaveSkills)}, ${JSON.stringify(niceToHaveSkills)},
-          'draft', FALSE, FALSE, FALSE, 10000.00
+          ${jobId}, ${clientId}, ${title}, ${location}, ${workType}, ${category}, ${salaryMin}, ${salaryMax},
+          ${summary}, ${recruiterEmail}, ${recruiterName}, ${JSON.stringify(duties)}::jsonb,
+          ${JSON.stringify(mustHaveSkills)}::jsonb, ${JSON.stringify(niceToHaveSkills)}::jsonb,
+          ${state}, ${approved}, ${isPublished}, ${listingFeePaid}, ${listingFeeRef}, ${listingFeeAmount},
+          NOW(), NOW()
         )
-        RETURNING id, title, location, state, is_published, listing_fee_paid, listing_fee_amount, created_at;
+        RETURNING id, client_id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, listing_fee_paid, listing_fee_amount, summary, duties, must_have_skills, nice_to_have_skills, created_at;
       `;
 
       return Response.json(
         {
           status: "created",
-          message: "Job order created in draft. Pay ₦10,000 listing fee via Paystack to publish.",
+          message: approved
+            ? "Job order created and published directly by Platform Admin for client."
+            : "Job order created in draft. Pay ₦10,000 listing fee via Paystack to publish.",
           job: newJob,
-          listingFeeRequiredNgn: 10000,
-          paymentAction: {
-            amountKobo: 1000000,
-            amountNgn: 10000,
-            jobId: newJob.id,
-            webhookTarget: "paystack",
-          },
+          listingFeeRequiredNgn: listingFeePaid ? 0 : 10000,
+          paymentAction: listingFeePaid
+            ? null
+            : {
+                amountKobo: 1000000,
+                amountNgn: 10000,
+                jobId: newJob.id,
+                webhookTarget: "paystack",
+              },
         },
         { status: 201, headers: corsHeaders }
       );
     }
 
-    // 3b. PATCH /jobs - Update Job Order (Admin/Recruiter CRUD & Scorecard Edit)
+    // 3b. PATCH /jobs - Update Job Order (Admin/Recruiter CRUD, Client assignment & Scorecard Edit)
     if (path === "/jobs" && (method === "PATCH" || method === "PUT")) {
       const body = await req.json();
       const jobId = body.id || url.searchParams.get("id");
@@ -184,6 +200,7 @@ export default async function handler(req: Request): Promise<Response> {
       }
 
       const {
+        clientId,
         title,
         location,
         workType,
@@ -208,11 +225,12 @@ export default async function handler(req: Request): Promise<Response> {
         // Upsert / insert if it doesn't exist yet
         const [insertedJob] = await sql`
           INSERT INTO job_orders (
-            id, title, location, work_type, category, salary_min, salary_max,
+            id, client_id, title, location, work_type, category, salary_min, salary_max,
             summary, state, approved, is_published, is_confidential, show_salary,
             duties, must_have_skills, nice_to_have_skills, created_at, updated_at
           ) VALUES (
             ${jobId},
+            ${clientId || "c1"},
             ${title || "Job Order"},
             ${location || "Abuja"},
             ${workType || "Full-time"},
@@ -231,7 +249,7 @@ export default async function handler(req: Request): Promise<Response> {
             NOW(),
             NOW()
           )
-          RETURNING id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
+          RETURNING id, client_id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
         `;
         return Response.json(
           { status: "success", message: "Job order created and saved successfully", job: insertedJob },
@@ -242,6 +260,7 @@ export default async function handler(req: Request): Promise<Response> {
       const [updatedJob] = await sql`
         UPDATE job_orders
         SET
+          client_id = COALESCE(${clientId}, client_id),
           title = COALESCE(${title}, title),
           location = COALESCE(${location}, location),
           work_type = COALESCE(${workType}, work_type),
@@ -259,7 +278,7 @@ export default async function handler(req: Request): Promise<Response> {
           nice_to_have_skills = CASE WHEN ${niceToHaveSkills !== undefined} THEN ${JSON.stringify(niceToHaveSkills || [])}::jsonb ELSE nice_to_have_skills END,
           updated_at = NOW()
         WHERE id = ${jobId}
-        RETURNING id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
+        RETURNING id, client_id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
       `;
 
       return Response.json(
