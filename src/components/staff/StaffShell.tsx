@@ -18,7 +18,8 @@ import {
   ShieldCheck,
   UserCheck,
   LogOut,
-  Sliders
+  Sliders,
+  Sparkles
 } from 'lucide-react';
 
 interface StaffShellProps {
@@ -41,6 +42,7 @@ export const StaffShell: React.FC<StaffShellProps> = ({
     ['dashboard', <Home size={18} key="d" />, 'Dashboard'],
     ['pipeline', <Kanban size={18} key="p" />, 'Pipeline'],
     ['pool', <Users size={18} key="u" />, 'Talent pool'],
+    ['chat-data', <Sparkles size={18} key="ai" />, 'AI Copilot'],
     ['job-orders', <Briefcase size={18} key="j" />, 'Job orders'],
     ['clients', <Building size={18} key="c" />, 'Clients'],
     ['placements', <Award size={18} key="pl" />, 'Placements'],

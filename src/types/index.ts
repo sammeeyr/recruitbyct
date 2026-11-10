@@ -28,7 +28,8 @@ export type View =
   | 'drive-sync'
   | 'intake'
   | 'client-portal'
-  | 'admin';
+  | 'admin'
+  | 'chat-data';
 
 export interface AiInterviewQuestion {
   id: string;

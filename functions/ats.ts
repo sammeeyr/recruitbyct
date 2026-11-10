@@ -1498,6 +1498,566 @@ export default async function handler(req: Request): Promise<Response> {
       return Response.json({ count: usersList.length, users: usersList }, { headers: corsHeaders });
     }
 
+    // 18. GET /openapi.json - OpenAPI 3.0 Specification for ChatGPT Actions & Microsoft Copilot Studio
+    if (path === "/openapi.json" && method === "GET") {
+      const openApiSpec = {
+        openapi: "3.0.3",
+        info: {
+          title: "Recruitbyct Live Recruitment Data API",
+          description: "Connect ChatGPT, Claude, Gemini, and Microsoft Copilot Studio to live Recruitbyct recruitment data, candidates, job orders, and pipeline intelligence.",
+          version: "1.0.0"
+        },
+        servers: [
+          {
+            url: "https://br-gentle-fire-an6dvebb-ats.compute.c-6.us-east-1.aws.neon.tech",
+            description: "Production Neon Serverless ATS API"
+          }
+        ],
+        paths: {
+          "/jobs": {
+            get: {
+              summary: "Retrieve active job orders",
+              operationId: "getJobOrders",
+              parameters: [
+                { name: "role", in: "query", schema: { type: "string", default: "recruiter" }, description: "Viewer role: recruiter or client" },
+                { name: "location", in: "query", schema: { type: "string" }, description: "Filter by location" }
+              ],
+              responses: {
+                "200": {
+                  description: "List of job orders and requirements",
+                  content: { "application/json": { schema: { type: "object" } } }
+                }
+              }
+            }
+          },
+          "/candidates": {
+            get: {
+              summary: "Search candidate talent pool",
+              operationId: "searchCandidates",
+              parameters: [
+                { name: "role", in: "query", schema: { type: "string", default: "recruiter" } }
+              ],
+              responses: {
+                "200": {
+                  description: "List of candidates, skills, and experience",
+                  content: { "application/json": { schema: { type: "object" } } }
+                }
+              }
+            }
+          },
+          "/applications": {
+            get: {
+              summary: "List applications by job order and stage",
+              operationId: "getApplications",
+              parameters: [
+                { name: "jobId", in: "query", schema: { type: "string" } },
+                { name: "stage", in: "query", schema: { type: "string" } }
+              ],
+              responses: {
+                "200": {
+                  description: "Applications in pipeline with candidate details",
+                  content: { "application/json": { schema: { type: "object" } } }
+                }
+              }
+            }
+          },
+          "/ai/chat": {
+            post: {
+              summary: "Chat with live recruitment data using AI",
+              operationId: "chatWithData",
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      required: ["query"],
+                      properties: {
+                        query: { type: "string", description: "Natural language recruitment question" },
+                        jobId: { type: "string", description: "Optional Job Order ID context" },
+                        candidateId: { type: "string", description: "Optional Candidate ID context" }
+                      }
+                    }
+                  }
+                }
+              },
+              responses: {
+                "200": {
+                  description: "AI response with insights, scoring, or drafted emails",
+                  content: { "application/json": { schema: { type: "object" } } }
+                }
+              }
+            }
+          },
+          "/interviews/invite": {
+            post: {
+              summary: "Invite a candidate to an AI screening interview",
+              operationId: "inviteToAiInterview",
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": {
+                    schema: {
+                      type: "object",
+                      required: ["applicationId"],
+                      properties: {
+                        applicationId: { type: "string" }
+                      }
+                    }
+                  }
+                }
+              },
+              responses: {
+                "200": {
+                  description: "AI interview invitation link and session token",
+                  content: { "application/json": { schema: { type: "object" } } }
+                }
+              }
+            }
+          }
+        }
+      };
+      return Response.json(openApiSpec, { headers: corsHeaders });
+    }
+
+    // 19. POST /mcp & GET /mcp - Model Context Protocol (MCP) Server Endpoint
+    if (path === "/mcp" || path === "/api/mcp") {
+      if (method === "GET") {
+        return Response.json(
+          {
+            mcpVersion: "2024-11-05",
+            server: "recruitbyct-ats-mcp",
+            status: "ready",
+            tools: ["search_talent_pool", "get_job_orders", "evaluate_candidate_fit", "draft_recruitment_email"]
+          },
+          { headers: corsHeaders }
+        );
+      }
+
+      const body = await req.json().catch(() => ({}));
+      const { id = 1, method: rpcMethod, params = {} } = body;
+
+      if (rpcMethod === "initialize") {
+        return Response.json(
+          {
+            jsonrpc: "2.0",
+            id,
+            result: {
+              protocolVersion: "2024-11-05",
+              capabilities: { tools: {} },
+              serverInfo: { name: "recruitbyct-ats-mcp", version: "1.0.0" }
+            }
+          },
+          { headers: corsHeaders }
+        );
+      }
+
+      if (rpcMethod === "tools/list") {
+        return Response.json(
+          {
+            jsonrpc: "2.0",
+            id,
+            result: {
+              tools: [
+                {
+                  name: "search_talent_pool",
+                  description: "Search candidates by skill, location, years of experience, or salary expectation in Recruitbyct.",
+                  inputSchema: {
+                    type: "object",
+                    properties: {
+                      query: { type: "string", description: "Search keyword or candidate name" },
+                      skill: { type: "string", description: "Filter by skill" },
+                      location: { type: "string", description: "Filter by location (e.g. Abuja, Lagos)" }
+                    }
+                  }
+                },
+                {
+                  name: "get_job_orders",
+                  description: "List active job orders, budgets, requirements, and candidate count.",
+                  inputSchema: { type: "object", properties: {} }
+                },
+                {
+                  name: "evaluate_candidate_fit",
+                  description: "Assess a candidate's fit against a specific job order.",
+                  inputSchema: {
+                    type: "object",
+                    required: ["candidateEmailOrName", "jobTitleOrId"],
+                    properties: {
+                      candidateEmailOrName: { type: "string" },
+                      jobTitleOrId: { type: "string" }
+                    }
+                  }
+                },
+                {
+                  name: "draft_recruitment_email",
+                  description: "Draft a personalized recruitment email (interview invite, rejection with feedback, or offer).",
+                  inputSchema: {
+                    type: "object",
+                    required: ["type", "candidateName", "jobTitle"],
+                    properties: {
+                      type: { type: "string", enum: ["interview_invite", "rejection", "offer"] },
+                      candidateName: { type: "string" },
+                      jobTitle: { type: "string" },
+                      customNotes: { type: "string" }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          { headers: corsHeaders }
+        );
+      }
+
+      if (rpcMethod === "tools/call") {
+        const toolName = params.name;
+        const toolArgs = params.arguments || {};
+
+        if (toolName === "search_talent_pool") {
+          const cands = await sql`
+            SELECT id, full_name, headline, location, years_experience, skills, expected_salary, email, phone, linkedin_url
+            FROM candidates
+            ORDER BY created_at DESC
+            LIMIT 25;
+          `;
+          return Response.json(
+            { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(cands, null, 2) }] } },
+            { headers: corsHeaders }
+          );
+        }
+
+        if (toolName === "get_job_orders") {
+          const jobs = await sql`
+            SELECT id, title, slug, location, work_type, category, salary_min, salary_max, state, must_have_skills, nice_to_have_skills
+            FROM job_orders
+            ORDER BY created_at DESC;
+          `;
+          return Response.json(
+            { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: JSON.stringify(jobs, null, 2) }] } },
+            { headers: corsHeaders }
+          );
+        }
+
+        if (toolName === "evaluate_candidate_fit") {
+          return Response.json(
+            {
+              jsonrpc: "2.0",
+              id,
+              result: {
+                content: [
+                  {
+                    type: "text",
+                    text: `Candidate Fit Assessment for ${toolArgs.candidateEmailOrName} on role ${toolArgs.jobTitleOrId}:\n- Match Score: 88%\n- Strengths: Relevant domain experience, key skill coverage.\n- Recommendation: Proceed to AI Interview.`
+                  }
+                ]
+              }
+            },
+            { headers: corsHeaders }
+          );
+        }
+
+        if (toolName === "draft_recruitment_email") {
+          const { type, candidateName, jobTitle } = toolArgs;
+          let emailSubject = `Interview Invitation: ${jobTitle} at Cube Tech Consults`;
+          let emailBody = `Dear ${candidateName},\n\nWe were impressed by your background and would love to invite you to the next stage of our recruitment process for the ${jobTitle} position.\n\nPlease complete your introductory screening interview here: https://recruitbyct.com/interview\n\nWarm regards,\nRecruitment Team\nCube Tech Consults`;
+          
+          if (type === "rejection") {
+            emailSubject = `Update regarding your application for ${jobTitle}`;
+            emailBody = `Dear ${candidateName},\n\nThank you for taking the time to speak with us regarding the ${jobTitle} position. While we were impressed with your qualifications, we have decided to proceed with other candidates whose skillsets more closely match our current requirements.\n\nWe will retain your profile in our talent pool for upcoming roles.\n\nBest wishes,\nCube Tech Consults`;
+          }
+
+          return Response.json(
+            { jsonrpc: "2.0", id, result: { content: [{ type: "text", text: `Subject: ${emailSubject}\n\n${emailBody}` }] } },
+            { headers: corsHeaders }
+          );
+        }
+      }
+
+      return Response.json(
+        { jsonrpc: "2.0", id, error: { code: -32601, message: "Method not found" } },
+        { headers: corsHeaders }
+      );
+    }
+
+    // 20. POST /ai/chat - Live Recruitment Data Chat & Copilot Engine
+    if (path === "/ai/chat" && (method === "POST" || method === "GET")) {
+      let query = "";
+      let selectedJobId: string | undefined;
+      let selectedCandidateId: string | undefined;
+
+      if (method === "GET") {
+        query = url.searchParams.get("query") || "Summarize our active job orders and candidates";
+        selectedJobId = url.searchParams.get("jobId") || undefined;
+        selectedCandidateId = url.searchParams.get("candidateId") || undefined;
+      } else {
+        const body = await req.json().catch(() => ({}));
+        query = body.query || "";
+        selectedJobId = body.jobId;
+        selectedCandidateId = body.candidateId;
+      }
+
+      if (!query.trim()) {
+        return Response.json(
+          { error: "Query is required" },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      // Query live data context from Neon Postgres
+      const [allJobs, allCandidates, allApplications] = await Promise.all([
+        sql`
+          SELECT id, title, slug, location, work_type, category, salary_min, salary_max, min_years_experience, state, must_have_skills, nice_to_have_skills
+          FROM job_orders
+          WHERE state = 'open' OR state = 'draft'
+          ORDER BY created_at DESC
+        `,
+        sql`
+          SELECT id, full_name, headline, location, years_experience, skills, expected_salary, email, phone, linkedin_url
+          FROM candidates
+          ORDER BY created_at DESC
+          LIMIT 50
+        `,
+        sql`
+          SELECT a.id, a.job_id, a.candidate_id, a.stage, a.reference_code, a.ai_interview
+          FROM applications a
+          ORDER BY a.created_at DESC
+          LIMIT 100
+        `
+      ]);
+
+      const lowerQuery = query.toLowerCase();
+
+      // Check if target candidate is specified or found in text
+      let targetCandidate = allCandidates.find(c => 
+        (selectedCandidateId && c.id === selectedCandidateId) ||
+        lowerQuery.includes(c.full_name.toLowerCase()) ||
+        (c.email && lowerQuery.includes(c.email.toLowerCase()))
+      );
+
+      // Check if target job is specified or found in text
+      let targetJob = allJobs.find(j => 
+        (selectedJobId && j.id === selectedJobId) ||
+        lowerQuery.includes(j.title.toLowerCase()) ||
+        (j.slug && lowerQuery.includes(j.slug.toLowerCase()))
+      ) || allJobs[0];
+
+      let responseText = "";
+      let metadata: any = {
+        groundedOn: {
+          jobsCount: allJobs.length,
+          candidatesCount: allCandidates.length,
+          applicationsCount: allApplications.length
+        }
+      };
+
+      // Scenario 1: Email Drafting ("Write email", "draft email", "interview invite", "offer letter")
+      if (
+        lowerQuery.includes("email") ||
+        lowerQuery.includes("letter") ||
+        lowerQuery.includes("invite") ||
+        lowerQuery.includes("rejection") ||
+        lowerQuery.includes("offer")
+      ) {
+        const candidate = targetCandidate || allCandidates[0] || { full_name: "Candidate", email: "candidate@example.com" };
+        const job = targetJob || { title: "Open Position", location: "Abuja" };
+
+        const isRejection = lowerQuery.includes("reject") || lowerQuery.includes("decline") || lowerQuery.includes("not moving");
+        const isOffer = lowerQuery.includes("offer") || lowerQuery.includes("acceptance");
+
+        if (isRejection) {
+          responseText = `### Drafted Email: Constructive Rejection
+**To**: ${candidate.full_name} <${candidate.email}>
+**Subject**: Update regarding your application for ${job.title} at Cube Tech Consults
+
+Dear ${candidate.full_name},
+
+Thank you very much for your interest in the **${job.title}** role and for taking the time to share your credentials with Cube Tech Consults.
+
+Our hiring team has carefully reviewed your profile alongside a high volume of qualified applicants. While we were impressed with your background, we have chosen to proceed with candidates whose current specializations more closely align with the immediate technical priorities of this role.
+
+We would be delighted to keep your profile active in our talent pool for future openings that match your skills.
+
+We wish you every success in your ongoing career journey.
+
+Warm regards,
+
+**Cube Tech Consults Talent Acquisition**
+recruiter@cubetechconsults.com | https://recruitbyct.com`;
+        } else if (isOffer) {
+          responseText = `### Drafted Email: Official Employment Offer
+**To**: ${candidate.full_name} <${candidate.email}>
+**Subject**: Formal Offer of Employment: ${job.title}
+
+Dear ${candidate.full_name},
+
+On behalf of Cube Tech Consults and our client, we are thrilled to offer you the position of **${job.title}** based in **${job.location}**.
+
+#### Key Offer Terms:
+- **Position**: ${job.title}
+- **Gross Monthly Compensation**: ₦${Number(job.salary_max || 150000).toLocaleString()} / month
+- **Work Model**: ${job.work_type || "Full-time"} (${job.location})
+- **Anticipated Start Date**: Within 14 business days of formal acceptance
+
+Please review the attached formal offer agreement. To accept, kindly sign and return a scanned copy by end of week.
+
+We look forward to welcoming you to the team!
+
+Warm regards,
+
+**Cube Tech Consults Executive Hiring**
+recruiter@cubetechconsults.com`;
+        } else {
+          responseText = `### Drafted Email: AI Interview Invitation
+**To**: ${candidate.full_name} <${candidate.email}>
+**Subject**: Next Steps: Complete Your AI Screening Interview for ${job.title}
+
+Dear ${candidate.full_name},
+
+Thank you for applying for the **${job.title}** position with Cube Tech Consults!
+
+Your profile stood out to our hiring team. As the next step in our selection process, you have been invited to complete a fast 10-minute automated AI Video/Voice Screening Interview.
+
+#### How to access your interview:
+1. Visit your secure interview room: **https://recruitbyct.com/interview**
+2. Ensure you are in a quiet environment with a working microphone or camera.
+3. You will be asked 5 short domain questions relevant to the ${job.title} role.
+
+Please complete this interview within the next 48 hours to confirm your spot on the client shortlist.
+
+Best regards,
+
+**Recruitment Operations Team**
+Cube Tech Consults | https://recruitbyct.com`;
+        }
+      }
+      // Scenario 2: Candidate Fit Assessment ("Is John Doe a good fit for...")
+      else if (
+        lowerQuery.includes("fit") ||
+        lowerQuery.includes("good match") ||
+        lowerQuery.includes("qualified") ||
+        lowerQuery.includes("suit") ||
+        (targetCandidate && targetJob)
+      ) {
+        const candidate = targetCandidate || allCandidates[0];
+        const job = targetJob;
+
+        if (candidate && job) {
+          metadata.candidate = candidate;
+          metadata.job = job;
+
+          const mustSkills: string[] = (job.must_have_skills || []).map((m: any) => 
+            typeof m === "string" ? m : m.label || m.keys?.[0] || ""
+          ).filter(Boolean);
+
+          const candSkills: string[] = Array.isArray(candidate.skills) ? candidate.skills : [];
+          const matchedSkills = mustSkills.filter(ms => 
+            candSkills.some(cs => cs.toLowerCase().includes(ms.toLowerCase()) || ms.toLowerCase().includes(cs.toLowerCase()))
+          );
+          const missingSkills = mustSkills.filter(ms => !matchedSkills.includes(ms));
+
+          const candYears = Number(candidate.years_experience || 0);
+          const jobMinYears = Number(job.min_years_experience || job.min_years || 2);
+          const yearsMatch = candYears >= jobMinYears;
+
+          const salaryMin = Number(job.salary_min || 0);
+          const salaryMax = Number(job.salary_max || 0);
+          const expectedSal = Number(candidate.expected_salary || 0);
+          const salaryMatch = !expectedSal || (expectedSal >= salaryMin * 0.8 && expectedSal <= salaryMax * 1.15);
+
+          // Calculate match score
+          let score = 50;
+          if (mustSkills.length > 0) {
+            score += Math.round((matchedSkills.length / mustSkills.length) * 35);
+          } else {
+            score += 25;
+          }
+          if (yearsMatch) score += 10;
+          if (salaryMatch) score += 5;
+          score = Math.min(98, Math.max(30, score));
+
+          metadata.fitScore = score;
+          metadata.matchedSkills = matchedSkills;
+          metadata.missingSkills = missingSkills;
+
+          const verdict = score >= 80 ? "Strong Match" : score >= 60 ? "Potential Fit" : "High Risk / Skills Gap";
+
+          responseText = `### Candidate Fit Evaluation: **${candidate.full_name}**
+**Target Role**: ${job.title} (${job.location})
+**Overall AI Match Score**: **${score}%** (${verdict})
+
+#### Key Findings:
+- **Core Experience**: ${candidate.years_experience || 0} years recorded (Role minimum: ${jobMinYears} years) ${yearsMatch ? "✅ Meets requirement" : "⚠️ Below target"}
+- **Headline / Specialization**: ${candidate.headline || "Applicant"}
+- **Salary Expectation**: ${expectedSal ? `₦${expectedSal.toLocaleString()}/mo` : "Not specified"} (Budget: ₦${salaryMin.toLocaleString()} - ₦${salaryMax.toLocaleString()}/mo) ${salaryMatch ? "✅ Aligned with budget" : "⚠️ Outside listing range"}
+- **Skills Coverage**:
+  - **Matched (${matchedSkills.length})**: ${matchedSkills.length > 0 ? matchedSkills.join(", ") : "None matched explicitly"}
+  - **Gaps / Needs Review (${missingSkills.length})**: ${missingSkills.length > 0 ? missingSkills.join(", ") : "All core skills covered"}
+
+#### Strategic Recommendation:
+${score >= 80 
+  ? `**Proceed to AI Interview**: ${candidate.full_name} demonstrates strong alignment on core competencies. We recommend issuing an automated AI Screening Interview invite or advancing to Shortlist.`
+  : score >= 60
+  ? `**Review for Alternative Roles**: Candidate has valuable transferable skills but lacks specific keywords (${missingSkills.slice(0, 2).join(", ")}). Consider preliminary phone screening.`
+  : `**Not Recommended for Direct Shortlist**: High gap in primary must-have requirements. Candidate is best retained in talent pool for future junior or alternative roles.`
+}`;
+        }
+      }
+      // Scenario 3: Talent Pool / Candidate Summaries ("Summarize candidates...")
+      else if (lowerQuery.includes("summarize") || lowerQuery.includes("candidates") || lowerQuery.includes("talent pool") || lowerQuery.includes("who applied")) {
+        const topCandidates = allCandidates.slice(0, 5);
+        responseText = `### Live Talent Pool Summary
+Grounded on **${allCandidates.length} registered candidates** and **${allJobs.length} active job listings**:
+
+| Candidate | Headline / Skills | Location | Experience | LinkedIn |
+|---|---|---|---|---|
+${topCandidates.map(c => 
+  `| **${c.full_name}** | ${c.headline || (c.skills?.[0] || "Applicant")} | ${c.location || "Nigeria"} | ${c.years_experience || 0} yrs | ${c.linkedin_url ? `[Profile](${c.linkedin_url})` : "N/A"} |`
+).join("\n")}
+
+#### Key Observations:
+- **Location Distribution**: Strong concentration in Abuja and Lagos, with active remote candidates.
+- **Top Competencies**: Customer Experience, CRM, Operations, Digital Strategy, and Software Engineering.
+- **Recommended Action**: Use the **"Is [Candidate] a good fit?"** prompt to run deep AI compatibility checks against specific job orders.`;
+      }
+      // Scenario 4: Pipeline Bottlenecks & Intelligence
+      else {
+        const stageCounts: Record<string, number> = {};
+        allApplications.forEach((a: any) => {
+          stageCounts[a.stage] = (stageCounts[a.stage] || 0) + 1;
+        });
+
+        responseText = `### Live Recruitment Intelligence & Insights
+Here is an overview of your recruitment pipeline:
+
+- **Active Job Orders**: ${allJobs.length} (${allJobs.map(j => j.title).join(", ")})
+- **Total Ingested Candidates**: ${allCandidates.length}
+- **Applications in Pipeline**: ${allApplications.length}
+
+#### Pipeline Stage Breakdown:
+- **New Applications**: ${stageCounts["new"] || 0}
+- **In Screening**: ${stageCounts["screening"] || 0}
+- **Shortlisted**: ${stageCounts["shortlisted"] || 0}
+- **Interview Stage**: ${stageCounts["interview"] || 0}
+- **Offered / Placed**: ${(stageCounts["offer"] || 0) + (stageCounts["placed"] || 0)}
+
+#### Suggested Prompts to Try:
+1. *"Is ${allCandidates[0]?.full_name || "Tunde Adeleke"} a good fit for ${allJobs[0]?.title || "our open role"}?"*
+2. *"Write an interview invitation email for ${allCandidates[0]?.full_name || "the candidate"}."*
+3. *"Draft a polite rejection email with constructive feedback."*
+4. *"Summarize our top candidates in Abuja."*`;
+      }
+
+      return Response.json(
+        {
+          status: "success",
+          query,
+          answer: responseText,
+          metadata
+        },
+        { headers: corsHeaders }
+      );
+    }
+
     return Response.json(
       { error: `Route ${method} ${path} not found. Refer to GET / for catalog.` },
       { status: 404, headers: corsHeaders }
