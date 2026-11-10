@@ -56,6 +56,7 @@ interface ModalState {
     | 'resume-import'
     | 'linkedin-jobs'
     | 'share-linkedin'
+    | 'applicants'
     | 'paystack'
     | 'ai-interview-invite'
     | 'ai-interview-result';
@@ -125,6 +126,9 @@ interface AppContextType {
     fileName: string;
     source?: 'Careers site' | 'LinkedIn';
     linkedinUrl?: string;
+    headline?: string;
+    expectedSalary?: number;
+    availabilityDays?: number;
   }) => void;
   draftNewJobOrder: (data: {
     clientId: string;
@@ -186,7 +190,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function pathToView(pathname: string): View {
   const clean = pathname.toLowerCase().replace(/\/+$/, '') || '/';
-  if (clean === '/' || clean === '/careers') return 'careers';
+  if (clean === '/' || clean === '/careers' || clean.startsWith('/jobs/') || clean.startsWith('/apply/') || clean.startsWith('/careers/job/')) return 'careers';
   if (clean === '/careers/track' || clean === '/track') return 'track';
   if (clean === '/onboard' || clean === '/recruiter-onboarding' || clean === '/join') return 'onboard';
   if (clean === '/login' || clean === '/signin' || clean === '/recruiter/login') return 'login';
@@ -392,6 +396,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               id: String(dbJob.id),
               clientId: dbJob.client_id || 'c1',
               title: dbJob.title,
+              slug: dbJob.slug || undefined,
               location: dbJob.location || 'Abuja',
               type: dbJob.work_type || 'Full-time',
               category: dbJob.category || 'Customer service',
@@ -515,6 +520,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Modals & Toast
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Deep-linking URL handler: maps /jobs/:slug, /apply/:slug, ?job=:id, ?ref=:ref directly to views/modals
+  useEffect(() => {
+    if (jobs.length === 0) return;
+
+    try {
+      const pathname = window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      const queryJob = params.get('job') || params.get('id');
+      const queryApply = params.get('apply') === 'true' || params.get('mode') === 'apply';
+      const queryRef = params.get('ref') || params.get('track');
+
+      if (queryRef) {
+        navigate('track');
+        return;
+      }
+
+      let targetJob: JobOrder | undefined;
+      let isDirectApply = queryApply;
+
+      if (queryJob) {
+        targetJob = jobs.find(j => 
+          j.id.toLowerCase() === queryJob.toLowerCase() || 
+          j.slug?.toLowerCase() === queryJob.toLowerCase() || 
+          j.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').includes(queryJob.toLowerCase())
+        );
+      } else if (pathname.startsWith('/jobs/') || pathname.startsWith('/careers/job/')) {
+        const segments = pathname.split('/').filter(Boolean);
+        const slugOrId = decodeURIComponent(segments[segments.length - 1]).toLowerCase();
+        targetJob = jobs.find(j => 
+          j.id.toLowerCase() === slugOrId || 
+          j.slug?.toLowerCase() === slugOrId || 
+          j.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').includes(slugOrId)
+        );
+      } else if (pathname.startsWith('/apply/')) {
+        const segments = pathname.split('/').filter(Boolean);
+        const slugOrId = decodeURIComponent(segments[segments.length - 1]).toLowerCase();
+        targetJob = jobs.find(j => 
+          j.id.toLowerCase() === slugOrId || 
+          j.slug?.toLowerCase() === slugOrId || 
+          j.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').includes(slugOrId)
+        );
+        isDirectApply = true;
+      }
+
+      if (targetJob) {
+        setModal({
+          type: 'job',
+          id: targetJob.id,
+          mode: isDirectApply ? 'apply' : 'detail'
+        });
+      }
+    } catch (e) {
+      console.warn('[Deep Link] Resolution notice:', e);
+    }
+  }, [jobs]);
 
   const openModal = (m: ModalState) => setModal(m);
   const closeModal = () => setModal(null);
@@ -733,7 +794,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     answers,
     fileName,
     source = 'Careers site',
-    linkedinUrl
+    linkedinUrl,
+    headline,
+    expectedSalary,
+    availabilityDays = 0
   }: {
     jobId: string;
     name: string;
@@ -746,6 +810,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fileName: string;
     source?: 'Careers site' | 'LinkedIn';
     linkedinUrl?: string;
+    headline?: string;
+    expectedSalary?: number;
+    availabilityDays?: number;
   }) => {
     const j = jobs.find(x => x.id === jobId);
     if (!j) return;
@@ -765,6 +832,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const updatedCand: Candidate = {
         ...candidateObj,
         phone,
+        headline: headline || candidateObj.headline,
+        sal: expectedSalary || candidateObj.sal,
+        avail: availabilityDays !== undefined ? availabilityDays : candidateObj.avail,
         years: Math.max(candidateObj.years, years),
         skills: updatedSkills,
         linkedinUrl: linkedinUrl || candidateObj.linkedinUrl,
@@ -777,12 +847,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const newCand: Candidate = {
         id: nextId('k'),
         name,
-        headline: (skills[0] || 'Applicant') + ' professional',
+        headline: headline || (skills[0] || 'Applicant') + ' professional',
         loc,
         years,
         skills,
-        sal: Math.round((j.salary[0] + j.salary[1]) / 2),
-        avail: 0,
+        sal: expectedSalary || Math.round((j.salary[0] + j.salary[1]) / 2),
+        avail: availabilityDays || 0,
         verified: addDays(0),
         drive: driveConnected ? 'synced' : 'queued',
         email,
@@ -824,6 +894,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         location: loc,
         yearsExperience: years,
         skills,
+        headline: headline || candidateObj?.headline,
         linkedinUrl,
         source,
         resumeFileUrl: newApp.file,

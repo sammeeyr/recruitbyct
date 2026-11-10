@@ -1,8 +1,8 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { formatNaira, prettyKey } from '../../utils/helpers';
+import { formatNaira, prettyKey, getJobApplicationUrl } from '../../utils/helpers';
 import { RichTextRenderer } from '../common/RichTextRenderer';
-import { Check, X, Edit2, UploadCloud, Share2 } from 'lucide-react';
+import { Check, X, Edit2, UploadCloud, Share2, Users, Copy, Link2, ExternalLink } from 'lucide-react';
 import { LinkedinIcon } from '../common/LinkedinIcon';
 
 export const JobOrderModal: React.FC = () => {
@@ -11,12 +11,14 @@ export const JobOrderModal: React.FC = () => {
     closeModal,
     openModal,
     jobs,
+    applications,
     clients,
     approveJobScorecard,
     updateJobListing,
     updateJobState,
     setPipeJobId,
-    navigate
+    navigate,
+    showToast
   } = useApp();
 
   if (!modal || modal.type !== 'jo') return null;
@@ -55,6 +57,54 @@ export const JobOrderModal: React.FC = () => {
         {job.location} · {job.type} · {formatNaira(job.salary[0])} to{' '}
         {formatNaira(job.salary[1])} a month
       </p>
+
+      {/* Shareable Job URL Box */}
+      <div
+        style={{
+          background: 'var(--surface-2)',
+          border: '1px solid var(--line)',
+          borderRadius: '8px',
+          padding: '10px 12px',
+          margin: '12px 0 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '8px',
+          flexWrap: 'wrap'
+        }}
+      >
+        <div style={{ flex: 1, minWidth: '220px' }}>
+          <span className="xs muted" style={{ display: 'block', marginBottom: '2px', fontWeight: 600 }}>
+            Public Job Application URL
+          </span>
+          <span className="mono xs" style={{ color: 'var(--ink)', wordBreak: 'break-all' }}>
+            {getJobApplicationUrl(job)}
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => {
+              const url = getJobApplicationUrl(job);
+              navigator.clipboard.writeText(url);
+              showToast('Job application link copied to clipboard!');
+            }}
+            style={{ fontSize: '11px', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            <Copy size={12} /> Copy Link
+          </button>
+          <a
+            href={getJobApplicationUrl(job)}
+            target="_blank"
+            rel="noreferrer"
+            className="btn ghost sm"
+            style={{ fontSize: '11px', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            <ExternalLink size={12} /> Open
+          </a>
+        </div>
+      </div>
 
       {!job.approved && (
         <div className="banner" style={{ margin: '14px 0' }}>
@@ -216,6 +266,15 @@ export const JobOrderModal: React.FC = () => {
             <button
               type="button"
               className="btn primary sm"
+              onClick={() => openModal({ type: 'applicants', jobId: job.id })}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+            >
+              <Users size={14} /> Manage Applicants ({applications.filter(a => a.jobId === job.id).length})
+            </button>
+
+            <button
+              type="button"
+              className="btn ghost sm"
               onClick={handleOpenPipeline}
             >
               Open pipeline

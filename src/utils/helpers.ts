@@ -263,3 +263,23 @@ export const formatFileSize = (bytes: number): string => {
   }
   return (bytes / 1048576).toFixed(1) + ' MB';
 };
+
+export const getJobSlug = (job: { id: string; title: string; slug?: string }): string => {
+  if (job.slug && job.slug.trim()) {
+    return job.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+  const cleanTitle = job.title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  return cleanTitle ? `${cleanTitle}-${job.id.slice(0, 6)}` : job.id;
+};
+
+export const getJobApplicationUrl = (
+  job: { id: string; title: string; slug?: string },
+  directApply?: boolean
+): string => {
+  const base = typeof window !== 'undefined' ? window.location.origin : 'https://recruitbyct.com';
+  const slug = getJobSlug(job);
+  return `${base}/jobs/${slug}${directApply ? '?apply=true' : ''}`;
+};

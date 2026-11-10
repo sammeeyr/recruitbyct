@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS job_orders (
     id VARCHAR(64) PRIMARY KEY,
     client_id VARCHAR(64) REFERENCES clients(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE,
     location VARCHAR(128) NOT NULL DEFAULT 'Abuja',
     work_type VARCHAR(64) NOT NULL DEFAULT 'Full-time',
     category VARCHAR(128) NOT NULL DEFAULT 'Customer service',

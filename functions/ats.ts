@@ -78,7 +78,7 @@ export default async function handler(req: Request): Promise<Response> {
         // Recruiters see all orders including drafts and listing fee payment statuses
         jobs = await sql`
           SELECT 
-            id, client_id, title, location, work_type, category, salary_min, salary_max,
+            id, client_id, title, slug, location, work_type, category, salary_min, salary_max,
             state, approved, is_published, is_confidential, show_salary,
             summary, recruiter_email, listing_fee_paid, listing_fee_ref, listing_fee_amount,
             duties, must_have_skills, nice_to_have_skills, created_at, updated_at
@@ -89,7 +89,7 @@ export default async function handler(req: Request): Promise<Response> {
         // Candidates and clients only see live, published jobs
         jobs = await sql`
           SELECT 
-            id, client_id, title, location, work_type, category, salary_min, salary_max,
+            id, client_id, title, slug, location, work_type, category, salary_min, salary_max,
             state, approved, is_published, is_confidential, show_salary,
             summary, duties, must_have_skills, nice_to_have_skills, created_at
           FROM job_orders
@@ -127,6 +127,7 @@ export default async function handler(req: Request): Promise<Response> {
         id,
         clientId = "c1",
         title,
+        slug = null,
         location = "Abuja",
         workType = "Full-time",
         category = "Customer service",
@@ -155,19 +156,19 @@ export default async function handler(req: Request): Promise<Response> {
       // Insert job with client_id and rich summary
       const [newJob] = await sql`
         INSERT INTO job_orders (
-          id, client_id, title, location, work_type, category, salary_min, salary_max,
+          id, client_id, title, slug, location, work_type, category, salary_min, salary_max,
           summary, recruiter_email, recruiter_name, duties,
           must_have_skills, nice_to_have_skills,
           state, approved, is_published, listing_fee_paid, listing_fee_ref, listing_fee_amount,
           created_at, updated_at
         ) VALUES (
-          ${jobId}, ${clientId}, ${title}, ${location}, ${workType}, ${category}, ${salaryMin}, ${salaryMax},
+          ${jobId}, ${clientId}, ${title}, ${slug}, ${location}, ${workType}, ${category}, ${salaryMin}, ${salaryMax},
           ${summary}, ${recruiterEmail}, ${recruiterName}, ${JSON.stringify(duties)}::jsonb,
           ${JSON.stringify(mustHaveSkills)}::jsonb, ${JSON.stringify(niceToHaveSkills)}::jsonb,
           ${state}, ${approved}, ${isPublished}, ${listingFeePaid}, ${listingFeeRef}, ${listingFeeAmount},
           NOW(), NOW()
         )
-        RETURNING id, client_id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, listing_fee_paid, listing_fee_amount, summary, duties, must_have_skills, nice_to_have_skills, created_at;
+        RETURNING id, client_id, title, slug, location, work_type, category, salary_min, salary_max, state, approved, is_published, listing_fee_paid, listing_fee_amount, summary, duties, must_have_skills, nice_to_have_skills, created_at;
       `;
 
       return Response.json(
@@ -202,6 +203,7 @@ export default async function handler(req: Request): Promise<Response> {
       const {
         clientId,
         title,
+        slug,
         location,
         workType,
         category,
@@ -249,7 +251,7 @@ export default async function handler(req: Request): Promise<Response> {
             NOW(),
             NOW()
           )
-          RETURNING id, client_id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
+          RETURNING id, client_id, title, slug, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
         `;
         return Response.json(
           { status: "success", message: "Job order created and saved successfully", job: insertedJob },
@@ -262,6 +264,7 @@ export default async function handler(req: Request): Promise<Response> {
         SET
           client_id = COALESCE(${clientId}, client_id),
           title = COALESCE(${title}, title),
+          slug = COALESCE(${slug}, slug),
           location = COALESCE(${location}, location),
           work_type = COALESCE(${workType}, work_type),
           category = COALESCE(${category}, category),
@@ -278,7 +281,7 @@ export default async function handler(req: Request): Promise<Response> {
           nice_to_have_skills = CASE WHEN ${niceToHaveSkills !== undefined} THEN ${JSON.stringify(niceToHaveSkills || [])}::jsonb ELSE nice_to_have_skills END,
           updated_at = NOW()
         WHERE id = ${jobId}
-        RETURNING id, client_id, title, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
+        RETURNING id, client_id, title, slug, location, work_type, category, salary_min, salary_max, state, approved, is_published, duties, must_have_skills, nice_to_have_skills, updated_at;
       `;
 
       return Response.json(

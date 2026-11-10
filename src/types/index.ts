@@ -83,6 +83,7 @@ export interface JobOrder {
   id: string;
   clientId: string;
   title: string;
+  slug?: string;
   location: string;
   type: string; // 'Full-time' | 'Contract'
   category: string;

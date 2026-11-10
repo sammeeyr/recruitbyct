@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { JobOrder } from '../../types';
 import { CATEGORIES, LOCATIONS } from '../../data/mockData';
-import { formatNaira, addDays } from '../../utils/helpers';
+import { formatNaira, addDays, getJobSlug } from '../../utils/helpers';
 import { RichTextEditor, MAX_JOB_DESCRIPTION_WORDS } from '../common/RichTextEditor';
 import { countWords } from '../common/RichTextRenderer';
-import { X, Sparkles, Plus, Trash2, CheckCircle2, AlertTriangle, Save, Building } from 'lucide-react';
+import { X, Sparkles, Plus, Trash2, CheckCircle2, AlertTriangle, Save, Building, Copy, Link2, ExternalLink } from 'lucide-react';
 
 export const EditJobOrderModal: React.FC = () => {
   const { modal, closeModal, jobs, clients, updateJobOrder, deleteJobOrder } = useApp();
@@ -20,6 +20,8 @@ export const EditJobOrderModal: React.FC = () => {
   // Form State
   const [clientId, setClientId] = useState(job.clientId);
   const [title, setTitle] = useState(job.title);
+  const [slug, setSlug] = useState(job.slug || getJobSlug(job));
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const [location, setLocation] = useState(job.location);
   const [type, setType] = useState(job.type);
   const [category, setCategory] = useState(job.category);
@@ -127,6 +129,7 @@ export const EditJobOrderModal: React.FC = () => {
     const result = await updateJobOrder(job.id, {
       clientId,
       title: title.trim(),
+      slug: slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/(^-|-$)/g, ''),
       location,
       type,
       category,
@@ -220,6 +223,62 @@ export const EditJobOrderModal: React.FC = () => {
             value={title}
             onChange={e => setTitle(e.target.value)}
           />
+        </div>
+
+        {/* Custom Job URL & Slug Configuration */}
+        <div
+          style={{
+            background: 'var(--surface-2)',
+            border: '1px solid var(--line)',
+            borderRadius: '8px',
+            padding: '12px 14px',
+            marginBottom: '16px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <label htmlFor="edit-slug" style={{ fontSize: '13px', fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Link2 size={13} style={{ color: 'var(--red-text)' }} /> Public Job Application URL & Slug
+            </label>
+            <button
+              type="button"
+              className="linkbtn xs"
+              onClick={() => {
+                const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/jobs/${slug}`;
+                navigator.clipboard.writeText(url);
+                setCopiedUrl(true);
+                setTimeout(() => setCopiedUrl(false), 2000);
+              }}
+              style={{ color: '#0A66C2', display: 'flex', alignItems: 'center', gap: '4px' }}
+            >
+              <Copy size={11} /> {copiedUrl ? 'Copied Link!' : 'Copy Direct Link'}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: '6px', padding: '6px 10px' }}>
+            <span className="mono xs muted" style={{ userSelect: 'none' }}>
+              {typeof window !== 'undefined' ? window.location.origin : ''}/jobs/
+            </span>
+            <input
+              id="edit-slug"
+              type="text"
+              value={slug}
+              onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-'))}
+              placeholder="e.g. customer-experience-strategist"
+              style={{
+                border: 'none',
+                background: 'transparent',
+                padding: 0,
+                margin: 0,
+                fontFamily: 'var(--mono)',
+                fontSize: '12px',
+                color: 'var(--ink)',
+                flex: 1
+              }}
+            />
+          </div>
+          <span className="xs muted" style={{ display: 'block', marginTop: '4px' }}>
+            Applicants accessing this URL are routed directly to this job's overview and application process.
+          </span>
         </div>
 
         <div className="two">

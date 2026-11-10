@@ -13,12 +13,16 @@ import {
   Trash2,
   ExternalLink,
   Kanban,
-  CheckCircle2
+  CheckCircle2,
+  Users,
+  Copy,
+  Link2
 } from 'lucide-react';
 import { LinkedinIcon } from '../common/LinkedinIcon';
+import { getJobApplicationUrl } from '../../utils/helpers';
 
 export const JobOrdersView: React.FC = () => {
-  const { jobs, clients, applications, openModal, deleteJobOrder, setPipeJobId, navigate } = useApp();
+  const { jobs, clients, applications, openModal, deleteJobOrder, setPipeJobId, navigate, showToast } = useApp();
   const { user } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -197,10 +201,53 @@ export const JobOrdersView: React.FC = () => {
                         <span className="chip warn">Needs approval</span>
                       )}
                     </td>
-                    <td className="num">{applicantCount}</td>
+                    <td className="num">
+                      <button
+                        type="button"
+                        onClick={() => openModal({ type: 'applicants', jobId: j.id })}
+                        style={{
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          padding: '3px 8px',
+                          borderRadius: '12px',
+                          background: applicantCount > 0 ? 'rgba(10, 102, 194, 0.1)' : 'var(--surface-2)',
+                          color: applicantCount > 0 ? '#0A66C2' : 'var(--muted)',
+                          border: applicantCount > 0 ? '1px solid rgba(10, 102, 194, 0.3)' : '1px solid var(--line)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                        title={`Manage ${applicantCount} applicants`}
+                      >
+                        <Users size={12} /> {applicantCount}
+                      </button>
+                    </td>
                     <td className="num">{j.state === 'draft' ? '—' : formatDate(j.closes)}</td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="iconbtn"
+                          title="Manage Applicants"
+                          onClick={() => openModal({ type: 'applicants', jobId: j.id })}
+                          style={{ padding: '5px', color: '#0A66C2' }}
+                        >
+                          <Users size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="iconbtn"
+                          title="Copy Shareable Job URL"
+                          onClick={() => {
+                            const url = getJobApplicationUrl(j);
+                            navigator.clipboard.writeText(url);
+                            showToast(`Copied application link: ${url}`);
+                          }}
+                          style={{ padding: '5px' }}
+                        >
+                          <Link2 size={14} />
+                        </button>
                         <button
                           type="button"
                           className="iconbtn"
