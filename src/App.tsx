@@ -3,6 +3,8 @@ import { useApp } from './context/AppContext';
 import { useAuth } from './context/AuthContext';
 import { Toast } from './components/common/Toast';
 import { ModalContainer } from './components/common/ModalContainer';
+import { NotificationCenter } from './components/common/NotificationCenter';
+import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 
 // Public views
 import { CareersView } from './components/public/CareersView';
@@ -27,7 +29,7 @@ import { ChatWithDataView } from './components/staff/ChatWithDataView';
 import { ClientPortalView } from './components/client/ClientPortalView';
 
 export const AppContent: React.FC = () => {
-  const { view } = useApp();
+  const { view, isNotificationsOpen, closeNotifications } = useApp();
   const { canAccessAts } = useAuth();
 
   const renderActiveView = () => {
@@ -73,6 +75,8 @@ export const AppContent: React.FC = () => {
     <>
       <div id="app">{renderActiveView()}</div>
       <ModalContainer />
+      <NotificationCenter isOpen={isNotificationsOpen} onClose={closeNotifications} />
+      <PwaInstallPrompt />
       <Toast />
     </>
   );

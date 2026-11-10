@@ -12,7 +12,11 @@ export type Permission =
   | 'reveal_candidate'
   | 'manage_invoices'
   | 'configure_integrations'
-  | 'override_fees';
+  | 'override_fees'
+  | 'manage_clients'
+  | 'create_client'
+  | 'edit_client'
+  | 'delete_client';
 
 export interface UserSession {
   id: string;
@@ -38,7 +42,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'approve_scorecard',
     'view_blind_feed',
     'reveal_candidate',
-    'manage_invoices'
+    'manage_invoices',
+    'manage_clients',
+    'create_client',
+    'edit_client',
+    'delete_client'
   ],
   admin: [
     'view_careers',
@@ -50,7 +58,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reveal_candidate',
     'manage_invoices',
     'configure_integrations',
-    'override_fees'
+    'override_fees',
+    'manage_clients',
+    'create_client',
+    'edit_client',
+    'delete_client'
   ],
   agency_admin: [
     'view_careers',
@@ -62,6 +74,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reveal_candidate',
     'manage_invoices',
     'configure_integrations',
-    'override_fees'
+    'override_fees',
+    'manage_clients',
+    'create_client',
+    'edit_client',
+    'delete_client'
   ]
 };

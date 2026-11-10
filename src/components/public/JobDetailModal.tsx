@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { StatusChip } from '../common/StatusChip';
-import { daysDiff, formatDate, formatNaira, getJobStatus } from '../../utils/helpers';
+import { daysDiff, formatDate, formatNaira, getJobStatus, generateJobPostingJsonLd } from '../../utils/helpers';
 import { RichTextRenderer } from '../common/RichTextRenderer';
 import { MapPin, X } from 'lucide-react';
 import { LinkedinIcon } from '../common/LinkedinIcon';
@@ -19,6 +19,24 @@ export const JobDetailModal: React.FC = () => {
   const client = clients.find(c => c.id === job.clientId);
   const status = getJobStatus(job);
   const isClosedOrFilled = status === 'Filled' || status === 'Closed';
+
+  // Inject Google for Jobs Schema.org/JobPosting JSON-LD for search engine indexation
+  useEffect(() => {
+    const jsonLd = generateJobPostingJsonLd(job, client?.name);
+    let scriptTag = document.getElementById('schema-job-posting') as HTMLScriptElement | null;
+    if (!scriptTag) {
+      scriptTag = document.createElement('script');
+      scriptTag.id = 'schema-job-posting';
+      scriptTag.type = 'application/ld+json';
+      document.head.appendChild(scriptTag);
+    }
+    scriptTag.text = JSON.stringify(jsonLd);
+
+    return () => {
+      const el = document.getElementById('schema-job-posting');
+      if (el) el.remove();
+    };
+  }, [job, client]);
 
   return (
     <>

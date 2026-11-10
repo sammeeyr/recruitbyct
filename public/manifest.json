@@ -1,12 +1,21 @@
 {
-  "name": "Cube Tech Consults — Recruitment & ATS",
-  "short_name": "Cube Tech",
-  "description": "Modern Recruitment, Applicant Tracking & Talent Placement platform.",
+  "name": "Recruitbyct ATS — Recruiter & Client Portal",
+  "short_name": "Recruitbyct",
+  "description": "Recruit on the go. AI-powered recruitment, automated 24/7 candidate screening, pipeline tracking, and instant event notifications on any device.",
   "start_url": "/",
+  "id": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0A0A0B",
+  "orientation": "portrait-primary",
+  "background_color": "#090909",
   "theme_color": "#090909",
+  "categories": ["business", "productivity"],
   "icons": [
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
@@ -18,6 +27,41 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Pipeline",
+      "short_name": "Pipeline",
+      "description": "View and manage candidates in your Kanban pipeline",
+      "url": "/dashboard/pipeline",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "AI Copilot",
+      "short_name": "AI Copilot",
+      "description": "Chat with live recruitment data and draft emails",
+      "url": "/dashboard/chat-data",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Job Orders",
+      "short_name": "Jobs",
+      "description": "Active job listings and syndicated channels",
+      "url": "/dashboard/jobs",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Intake Queue",
+      "short_name": "Intake",
+      "description": "Incoming applications stream and resume review",
+      "url": "/dashboard/intake",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -19,8 +19,10 @@ import {
   UserCheck,
   LogOut,
   Sliders,
-  Sparkles
+  Sparkles,
+  Bell
 } from 'lucide-react';
+import { MobileNav } from '../layout/MobileNav';
 
 interface StaffShellProps {
   title: string;
@@ -35,7 +37,18 @@ export const StaffShell: React.FC<StaffShellProps> = ({
   actions,
   children
 }) => {
-  const { view, navigate, approvals, driveConnected, theme, toggleTheme, setSurface, setSelectedClientId } = useApp();
+  const {
+    view,
+    navigate,
+    approvals,
+    driveConnected,
+    theme,
+    toggleTheme,
+    setSurface,
+    setSelectedClientId,
+    openNotifications,
+    unreadNotificationCount
+  } = useApp();
   const { user, allUsers, switchUser, logout } = useAuth();
 
   const navItems: [View, React.ReactNode, string][] = [
@@ -118,16 +131,42 @@ export const StaffShell: React.FC<StaffShellProps> = ({
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 6px #10B981' }} />
               <span style={{ fontSize: '11px', color: '#34D399', fontWeight: 600 }}>Neon Live</span>
             </div>
-            <button
-              type="button"
-              className="iconbtn"
-              onClick={toggleTheme}
-              aria-label="Switch theme"
-              title="Switch theme"
-              style={{ color: '#A1A1AA', padding: '4px' }}
-            >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                type="button"
+                className="iconbtn"
+                onClick={openNotifications}
+                aria-label={`Notifications (${unreadNotificationCount} unread)`}
+                title="Notifications"
+                style={{ color: unreadNotificationCount > 0 ? 'var(--yellow)' : '#A1A1AA', padding: '4px', position: 'relative' }}
+              >
+                <Bell size={14} />
+                {unreadNotificationCount > 0 && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '0px',
+                      right: '0px',
+                      width: '7px',
+                      height: '7px',
+                      borderRadius: '50%',
+                      background: 'var(--red)',
+                      boxShadow: '0 0 6px var(--red)'
+                    }}
+                  />
+                )}
+              </button>
+              <button
+                type="button"
+                className="iconbtn"
+                onClick={toggleTheme}
+                aria-label="Switch theme"
+                title="Switch theme"
+                style={{ color: '#A1A1AA', padding: '4px' }}
+              >
+                {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginBottom: '8px' }}>
@@ -220,6 +259,60 @@ export const StaffShell: React.FC<StaffShellProps> = ({
       </aside>
 
       <main className="main">
+        <header className="mobile-topbar">
+          <a
+            className="brand onblack"
+            href="/dashboard"
+            onClick={e => {
+              e.preventDefault();
+              navigate('dashboard');
+            }}
+            aria-label="Cube Tech Consults dashboard"
+            style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Logo />
+            <span className="wm" style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
+              <b style={{ fontSize: '15px', color: 'var(--ink)' }}>CUBE TECH</b>
+              <i style={{ fontSize: '10px', color: 'var(--muted)' }}>Consults · Mobile ATS</i>
+            </span>
+          </a>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button
+              type="button"
+              className="iconbtn"
+              onClick={openNotifications}
+              style={{ position: 'relative', padding: '6px' }}
+              aria-label="Open notifications"
+            >
+              <Bell size={18} style={{ color: unreadNotificationCount > 0 ? 'var(--yellow)' : 'var(--ink)' }} />
+              {unreadNotificationCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '2px',
+                    right: '2px',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: 'var(--red)',
+                    boxShadow: '0 0 6px var(--red)'
+                  }}
+                />
+              )}
+            </button>
+            <button
+              type="button"
+              className="iconbtn"
+              onClick={toggleTheme}
+              style={{ padding: '6px' }}
+              aria-label="Switch theme"
+            >
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+          </div>
+        </header>
+
         <div className="pagehead">
           <div>
             <h1>{title}</h1>
@@ -230,6 +323,8 @@ export const StaffShell: React.FC<StaffShellProps> = ({
 
         {children}
       </main>
+
+      <MobileNav />
     </div>
   );
 };

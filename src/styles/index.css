@@ -1762,3 +1762,31 @@ td .name:hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* Progressive Web App & Mobile Navigation */
+.mobile-topbar {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .main {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 16px)) !important;
+  }
+}
+
+@media (min-width: 901px) {
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+}

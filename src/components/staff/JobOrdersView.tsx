@@ -16,7 +16,8 @@ import {
   CheckCircle2,
   Users,
   Copy,
-  Link2
+  Link2,
+  Globe
 } from 'lucide-react';
 import { LinkedinIcon } from '../common/LinkedinIcon';
 import { getJobApplicationUrl } from '../../utils/helpers';
@@ -62,6 +63,14 @@ export const JobOrdersView: React.FC = () => {
       sub="Create, edit, AI-draft, and manage client recruitment roles and scorecards."
       actions={
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn ghost sm"
+            onClick={() => openModal({ type: 'job-channels' })}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#10B981' }}
+          >
+            <Globe size={15} /> 2,500+ Job Channels & Sponsored Ads
+          </button>
           <button
             type="button"
             className="btn ghost sm"
@@ -274,6 +283,15 @@ export const JobOrdersView: React.FC = () => {
                           style={{ padding: '5px', color: '#0A66C2' }}
                         >
                           <LinkedinIcon size={14} style={{ color: '#0A66C2' }} />
+                        </button>
+                        <button
+                          type="button"
+                          className="iconbtn"
+                          title="Post to 2,500+ Job Channels & Sponsored Ads"
+                          onClick={() => openModal({ type: 'job-channels', jobId: j.id })}
+                          style={{ padding: '5px', color: '#10B981' }}
+                        >
+                          <Globe size={14} />
                         </button>
                         <button
                           type="button"

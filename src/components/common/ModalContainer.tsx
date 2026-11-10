@@ -17,6 +17,8 @@ import { RejectMessageModal } from '../staff/RejectMessageModal';
 import { PaystackListingModal } from '../staff/PaystackListingModal';
 import { AiInterviewInviteModal } from '../staff/AiInterviewInviteModal';
 import { AiInterviewResultModal } from '../staff/AiInterviewResultModal';
+import { JobChannelsModal } from '../staff/JobChannelsModal';
+import { ClientModal } from '../staff/ClientModal';
 
 export const ModalContainer: React.FC = () => {
   const { modal, closeModal } = useApp();
@@ -55,7 +57,9 @@ export const ModalContainer: React.FC = () => {
     modal.type === 'applicants' ||
     modal.type === 'paystack' ||
     modal.type === 'ai-interview-invite' ||
-    modal.type === 'ai-interview-result';
+    modal.type === 'ai-interview-result' ||
+    modal.type === 'job-channels' ||
+    modal.type === 'client';
 
   return (
     <div
@@ -77,8 +81,9 @@ export const ModalContainer: React.FC = () => {
           modal.type === 'applicants' ||
           modal.type === 'editjob' ||
           modal.type === 'ai-interview-invite' ||
-          modal.type === 'ai-interview-result'
-            ? { maxWidth: '880px', width: '92%' }
+          modal.type === 'ai-interview-result' ||
+          modal.type === 'job-channels'
+            ? { maxWidth: '980px', width: '94%' }
             : undefined
         }
         onClick={e => e.stopPropagation()}
@@ -101,6 +106,8 @@ export const ModalContainer: React.FC = () => {
         {modal.type === 'paystack' && <PaystackListingModal />}
         {modal.type === 'ai-interview-invite' && <AiInterviewInviteModal />}
         {modal.type === 'ai-interview-result' && <AiInterviewResultModal />}
+        {modal.type === 'job-channels' && <JobChannelsModal />}
+        {modal.type === 'client' && <ClientModal />}
         {modal.type === 'reject' && <RejectMessageModal />}
       </div>
     </div>

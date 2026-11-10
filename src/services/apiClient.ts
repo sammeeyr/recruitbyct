@@ -274,6 +274,62 @@ export const apiClient = {
       } catch {
         return null;
       }
+    },
+
+    async createClient(data: {
+      name: string;
+      industry?: string;
+      contactName?: string;
+      contactEmail?: string;
+      contactPhone?: string;
+      feePercentage?: number;
+      guaranteeDays?: number;
+      id?: string;
+      slug?: string;
+    }) {
+      try {
+        const res = await fetch(`${this.atsUrl}/clients`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        return await res.json();
+      } catch (err: any) {
+        return { status: 'error', error: err.message || 'Failed to create client' };
+      }
+    },
+
+    async updateClient(id: string, data: {
+      name?: string;
+      industry?: string;
+      contactName?: string;
+      contactEmail?: string;
+      contactPhone?: string;
+      feePercentage?: number;
+      guaranteeDays?: number;
+      slug?: string;
+    }) {
+      try {
+        const res = await fetch(`${this.atsUrl}/clients`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, ...data })
+        });
+        return await res.json();
+      } catch (err: any) {
+        return { status: 'error', error: err.message || 'Failed to update client' };
+      }
+    },
+
+    async deleteClient(id: string) {
+      try {
+        const res = await fetch(`${this.atsUrl}/clients?id=${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+        return await res.json();
+      } catch (err: any) {
+        return { status: 'error', error: err.message || 'Failed to delete client' };
+      }
     }
   }
 };

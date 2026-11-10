@@ -120,6 +120,166 @@ export default async function handler(req: Request): Promise<Response> {
       return Response.json({ count: dbClients.length, clients: dbClients }, { headers: corsHeaders });
     }
 
+    // 2c. POST /clients - Create Corporate Client (Agency Recruiter / Admin CRUD)
+    if (path === "/clients" && method === "POST") {
+      const body = await req.json();
+      const {
+        name,
+        industry = "IT & Professional Services",
+        contactName = "",
+        contact_name = "",
+        contactEmail = "",
+        contact_email = "",
+        contactPhone = "",
+        contact_phone = "",
+        feePercentage = 15,
+        fee_percentage = 15,
+        guaranteeDays = 90,
+        guarantee_days = 90
+      } = body;
+
+      if (!name || typeof name !== "string" || !name.trim()) {
+        return Response.json({ error: "Client company name is required" }, { status: 400, headers: corsHeaders });
+      }
+
+      const clientName = name.trim();
+      const finalContactName = (contactName || contact_name || `${clientName} HR`).trim();
+      const finalContactEmail = (contactEmail || contact_email || "").trim() || null;
+      const finalContactPhone = (contactPhone || contact_phone || "").trim() || null;
+      const finalFee = Number(feePercentage ?? fee_percentage) || 15;
+      const finalGuarantee = Number(guaranteeDays ?? guarantee_days) || 90;
+
+      const randomSuffix = Math.random().toString(36).substring(2, 6);
+      const generatedSlug = (body.slug || clientName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")) + "-" + randomSuffix;
+      const clientId = body.id || `c_${Date.now().toString(36)}_${randomSuffix}`;
+
+      try {
+        const [inserted] = await sql`
+          INSERT INTO clients (
+            id, slug, name, industry, contact_name, contact_email, contact_phone,
+            fee_percentage, guarantee_days, created_at, updated_at
+          ) VALUES (
+            ${clientId}, ${generatedSlug}, ${clientName}, ${industry},
+            ${finalContactName}, ${finalContactEmail}, ${finalContactPhone},
+            ${finalFee}, ${finalGuarantee}, NOW(), NOW()
+          )
+          RETURNING id, slug, name, industry, contact_name, contact_email, contact_phone, fee_percentage, guarantee_days, created_at;
+        `;
+
+        await sql`
+          INSERT INTO activity_logs (event, message, metadata)
+          VALUES (
+            'client_created',
+            ${`Agency recruiter created client: ${inserted.name} (${inserted.id})`},
+            ${JSON.stringify({ clientId: inserted.id, name: inserted.name, industry: inserted.industry, fee: inserted.fee_percentage })}
+          )
+        `.catch(() => {});
+
+        return Response.json({ status: "success", client: inserted }, { status: 201, headers: corsHeaders });
+      } catch (err: any) {
+        return Response.json({ error: err.message || "Failed to create client" }, { status: 500, headers: corsHeaders });
+      }
+    }
+
+    // 2d. PATCH / PUT /clients - Update Corporate Client (Agency Recruiter / Admin CRUD)
+    if (path === "/clients" && (method === "PATCH" || method === "PUT")) {
+      const body = await req.json();
+      const clientId = body.id || url.searchParams.get("id");
+
+      if (!clientId) {
+        return Response.json({ error: "Client id is required for update" }, { status: 400, headers: corsHeaders });
+      }
+
+      const clientName = body.name !== undefined ? String(body.name).trim() : null;
+      const industry = body.industry !== undefined ? String(body.industry).trim() : null;
+      const contactName = (body.contactName ?? body.contact_name) !== undefined ? String(body.contactName ?? body.contact_name).trim() : null;
+      const contactEmail = (body.contactEmail ?? body.contact_email) !== undefined ? String(body.contactEmail ?? body.contact_email).trim() : null;
+      const contactPhone = (body.contactPhone ?? body.contact_phone) !== undefined ? String(body.contactPhone ?? body.contact_phone).trim() : null;
+      const feePercentage = (body.feePercentage ?? body.fee_percentage ?? body.fee) !== undefined ? Number(body.feePercentage ?? body.fee_percentage ?? body.fee) : null;
+      const guaranteeDays = (body.guaranteeDays ?? body.guarantee_days ?? body.guarantee) !== undefined ? Number(body.guaranteeDays ?? body.guarantee_days ?? body.guarantee) : null;
+
+      try {
+        const [updated] = await sql`
+          UPDATE clients
+          SET
+            name = COALESCE(${clientName}, name),
+            industry = COALESCE(${industry}, industry),
+            contact_name = COALESCE(${contactName}, contact_name),
+            contact_email = COALESCE(${contactEmail}, contact_email),
+            contact_phone = COALESCE(${contactPhone}, contact_phone),
+            fee_percentage = COALESCE(${feePercentage}, fee_percentage),
+            guarantee_days = COALESCE(${guaranteeDays}, guarantee_days),
+            updated_at = NOW()
+          WHERE id = ${clientId}
+          RETURNING id, slug, name, industry, contact_name, contact_email, contact_phone, fee_percentage, guarantee_days, created_at, updated_at;
+        `;
+
+        if (!updated) {
+          return Response.json({ error: "Client not found" }, { status: 404, headers: corsHeaders });
+        }
+
+        await sql`
+          INSERT INTO activity_logs (event, message, metadata)
+          VALUES (
+            'client_updated',
+            ${`Agency recruiter updated client details: ${updated.name} (${updated.id})`},
+            ${JSON.stringify({ clientId: updated.id, name: updated.name, fee: updated.fee_percentage })}
+          )
+        `.catch(() => {});
+
+        return Response.json({ status: "success", client: updated }, { headers: corsHeaders });
+      } catch (err: any) {
+        return Response.json({ error: err.message || "Failed to update client" }, { status: 500, headers: corsHeaders });
+      }
+    }
+
+    // 2e. DELETE /clients - Delete Corporate Client (Agency Recruiter / Admin CRUD)
+    if (path === "/clients" && method === "DELETE") {
+      let clientId = url.searchParams.get("id");
+      if (!clientId) {
+        try {
+          const body = await req.json();
+          clientId = body.id;
+        } catch {}
+      }
+
+      if (!clientId) {
+        return Response.json({ error: "Client id is required for deletion" }, { status: 400, headers: corsHeaders });
+      }
+
+      try {
+        // Disassociate any jobs or placements linked to this client
+        await sql`UPDATE job_orders SET client_id = NULL WHERE client_id = ${clientId}`.catch(() => {});
+        await sql`UPDATE placements SET client_id = NULL WHERE client_id = ${clientId}`.catch(() => {});
+
+        const [deleted] = await sql`
+          DELETE FROM clients
+          WHERE id = ${clientId}
+          RETURNING id, name;
+        `;
+
+        if (!deleted) {
+          return Response.json({ error: "Client not found or already deleted" }, { status: 404, headers: corsHeaders });
+        }
+
+        await sql`
+          INSERT INTO activity_logs (event, message, metadata)
+          VALUES (
+            'client_deleted',
+            ${`Agency recruiter deleted client: ${deleted.name} (${deleted.id})`},
+            ${JSON.stringify({ clientId: deleted.id, name: deleted.name })}
+          )
+        `.catch(() => {});
+
+        return Response.json(
+          { status: "success", message: `Client '${deleted.name}' deleted successfully.`, id: deleted.id },
+          { headers: corsHeaders }
+        );
+      } catch (err: any) {
+        return Response.json({ error: err.message || "Failed to delete client" }, { status: 500, headers: corsHeaders });
+      }
+    }
+
     // 3. POST /jobs - Create New Job Order (Admin client creation or Recruiter draft)
     if (path === "/jobs" && method === "POST") {
       const body = await req.json();
@@ -2053,6 +2213,132 @@ Here is an overview of your recruitment pipeline:
           query,
           answer: responseText,
           metadata
+        },
+        { headers: corsHeaders }
+      );
+    }
+
+    // 21. GET /feeds/indeed.xml - Indeed XML Syndication Feed for 2,500+ Organic Channels
+    if (path === "/feeds/indeed.xml" && method === "GET") {
+      const liveJobs = await sql`
+        SELECT id, title, slug, summary, location, work_type, category, salary_min, salary_max, closes_at, created_at
+        FROM job_orders
+        WHERE is_published = TRUE AND (state = 'open' OR state = 'draft')
+        ORDER BY created_at DESC;
+      `;
+
+      const xmlJobs = liveJobs.map(j => {
+        const applyUrl = `https://recruitbyct.com/apply/${j.slug || j.id}`;
+        const cleanDesc = (j.summary || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        const isLagos = (j.location || "").toLowerCase().includes("lagos");
+        return `
+    <job>
+      <title><![CDATA[${j.title}]]></title>
+      <date><![CDATA[${new Date(j.created_at).toUTCString()}]]></date>
+      <referencenumber><![CDATA[${j.id}]]></referencenumber>
+      <url><![CDATA[${applyUrl}]]></url>
+      <company><![CDATA[Cube Tech Consults]]></company>
+      <city><![CDATA[${j.location || "Abuja"}]]></city>
+      <state><![CDATA[${isLagos ? "Lagos" : "FCT"}]]></state>
+      <country><![CDATA[NG]]></country>
+      <description><![CDATA[${cleanDesc}]]></description>
+      <salary><![CDATA[₦${Number(j.salary_min).toLocaleString()} - ₦${Number(j.salary_max).toLocaleString()} a month]]></salary>
+      <jobtype><![CDATA[${j.work_type || "Full-time"}]]></jobtype>
+      <category><![CDATA[${j.category || "Professional"}]]></category>
+    </job>`;
+      }).join("\n");
+
+      const xml = `<?xml version="1.0" encoding="utf-8"?>
+<source>
+  <publisher>Recruitbyct</publisher>
+  <publisherurl>https://recruitbyct.com</publisherurl>
+  <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+  ${xmlJobs}
+</source>`;
+
+      return new Response(xml, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/xml; charset=utf-8"
+        }
+      });
+    }
+
+    // 22. GET /feeds/jobs.xml - Standard RSS 2.0 Syndication Feed
+    if (path === "/feeds/jobs.xml" && method === "GET") {
+      const liveJobs = await sql`
+        SELECT id, title, slug, summary, location, work_type, category, salary_min, salary_max, closes_at, created_at
+        FROM job_orders
+        WHERE is_published = TRUE AND (state = 'open' OR state = 'draft')
+        ORDER BY created_at DESC;
+      `;
+
+      const items = liveJobs.map(j => {
+        const applyUrl = `https://recruitbyct.com/apply/${j.slug || j.id}`;
+        return `
+    <item>
+      <title><![CDATA[${j.title} - ${j.location}]]></title>
+      <link>${applyUrl}</link>
+      <guid isPermaLink="true">${applyUrl}</guid>
+      <pubDate>${new Date(j.created_at).toUTCString()}</pubDate>
+      <description><![CDATA[${j.summary || j.title}]]></description>
+      <category><![CDATA[${j.category || "General"}]]></category>
+    </item>`;
+      }).join("\n");
+
+      const rss = `<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Recruitbyct Multi-Channel Job Feed</title>
+    <link>https://recruitbyct.com/careers</link>
+    <description>Live published jobs from Cube Tech Consults for 2,500+ organic and premium job networks</description>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    ${items}
+  </channel>
+</rss>`;
+
+      return new Response(rss, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/rss+xml; charset=utf-8"
+        }
+      });
+    }
+
+    // 23. GET /feeds/jobs.json - Programmatic Multi-Posting JSON Feed
+    if (path === "/feeds/jobs.json" && method === "GET") {
+      const liveJobs = await sql`
+        SELECT id, title, slug, summary, location, work_type, category, salary_min, salary_max, closes_at, created_at
+        FROM job_orders
+        WHERE is_published = TRUE AND (state = 'open' OR state = 'draft')
+        ORDER BY created_at DESC;
+      `;
+
+      return Response.json(
+        {
+          feedVersion: "1.0",
+          publisher: "Recruitbyct",
+          website: "https://recruitbyct.com",
+          generatedAt: new Date().toISOString(),
+          count: liveJobs.length,
+          jobs: liveJobs.map(j => ({
+            id: j.id,
+            title: j.title,
+            slug: j.slug,
+            url: `https://recruitbyct.com/apply/${j.slug || j.id}`,
+            location: j.location,
+            workType: j.work_type,
+            category: j.category,
+            salaryMin: Number(j.salary_min),
+            salaryMax: Number(j.salary_max),
+            currency: "NGN",
+            closesAt: j.closes_at,
+            createdAt: j.created_at,
+            summary: j.summary
+          }))
         },
         { headers: corsHeaders }
       );

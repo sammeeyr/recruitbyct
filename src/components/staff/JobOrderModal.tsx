@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatNaira, prettyKey, getJobApplicationUrl } from '../../utils/helpers';
 import { RichTextRenderer } from '../common/RichTextRenderer';
-import { Check, X, Edit2, UploadCloud, Share2, Users, Copy, Link2, ExternalLink } from 'lucide-react';
+import { Check, X, Edit2, UploadCloud, Share2, Users, Copy, Link2, ExternalLink, Globe } from 'lucide-react';
 import { LinkedinIcon } from '../common/LinkedinIcon';
 
 export const JobOrderModal: React.FC = () => {
@@ -270,6 +270,15 @@ export const JobOrderModal: React.FC = () => {
               style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
             >
               <Users size={14} /> Manage Applicants ({applications.filter(a => a.jobId === job.id).length})
+            </button>
+
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => openModal({ type: 'job-channels', jobId: job.id })}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#10B981' }}
+            >
+              <Globe size={14} /> 2,500+ Channels & Ads
             </button>
 
             <button

@@ -283,3 +283,60 @@ export const getJobApplicationUrl = (
   const slug = getJobSlug(job);
   return `${base}/jobs/${slug}${directApply ? '?apply=true' : ''}`;
 };
+
+/**
+ * Generate Schema.org/JobPosting JSON-LD for Google for Jobs automatic indexing
+ */
+export const generateJobPostingJsonLd = (
+  job: JobOrder,
+  clientName?: string
+): object => {
+  const applyUrl = getJobApplicationUrl(job, true);
+  const isLagos = job.location.toLowerCase().includes('lagos');
+
+  return {
+    '@context': 'https://schema.org/',
+    '@type': 'JobPosting',
+    title: job.title,
+    description: job.summary || `Recruiting for ${job.title} based in ${job.location}.`,
+    identifier: {
+      '@type': 'PropertyValue',
+      name: 'Recruitbyct',
+      value: job.id
+    },
+    datePosted: '2026-11-09T00:00:00Z',
+    validThrough: job.closes ? `${job.closes}T23:59:59Z` : '2026-12-31T23:59:59Z',
+    employmentType: job.type === 'Contract' ? 'CONTRACTOR' : job.type === 'Part-time' ? 'PART_TIME' : 'FULL_TIME',
+    hiringOrganization: {
+      '@type': 'Organization',
+      name: job.listing.confidential ? 'Confidential Client' : (clientName || 'Cube Tech Consults'),
+      sameAs: 'https://recruitbyct.com'
+    },
+    jobLocation: {
+      '@type': 'Place',
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: job.location,
+        addressRegion: isLagos ? 'Lagos State' : 'Federal Capital Territory',
+        addressCountry: 'NG'
+      }
+    },
+    baseSalary: {
+      '@type': 'MonetaryAmount',
+      currency: 'NGN',
+      value: {
+        '@type': 'QuantitativeValue',
+        minValue: job.salary[0],
+        maxValue: job.salary[1],
+        unitText: 'MONTH'
+      }
+    },
+    applicantLocationRequirements: {
+      '@type': 'Country',
+      name: 'Nigeria'
+    },
+    jobLocationType: job.type?.toLowerCase().includes('remote') ? 'TELECOMMUTE' : undefined,
+    directApply: true,
+    url: applyUrl
+  };
+};

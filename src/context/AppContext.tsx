@@ -41,6 +41,8 @@ import {
   generateAiInterviewQuestions,
   evaluateInterviewSubmission
 } from '../utils/aiInterviewHelper';
+import { getUnreadNotificationCount, addStoredNotification } from '../utils/notificationHelper';
+import { apiClient } from '../services/apiClient';
 import confetti from 'canvas-confetti';
 
 interface ModalState {
@@ -59,7 +61,9 @@ interface ModalState {
     | 'applicants'
     | 'paystack'
     | 'ai-interview-invite'
-    | 'ai-interview-result';
+    | 'ai-interview-result'
+    | 'job-channels'
+    | 'client';
   id?: string;
   jobId?: string;
   clientId?: string;
@@ -96,6 +100,10 @@ interface AppContextType {
   closeModal: () => void;
   toast: string | null;
   showToast: (msg: string) => void;
+  isNotificationsOpen: boolean;
+  openNotifications: () => void;
+  closeNotifications: () => void;
+  unreadNotificationCount: number;
 
   // Public filters & tracking
   careersFilter: CareersFilter;
@@ -181,6 +189,19 @@ interface AppContextType {
     token: string,
     answers: { questionId: string; answerText: string }[]
   ) => Promise<any>;
+
+  // Client Management (Agency Recruiter / Admin CRUD)
+  createClient: (data: {
+    name: string;
+    industry?: string;
+    contact: string;
+    email?: string;
+    phone?: string;
+    fee?: number;
+    guarantee?: number;
+  }) => Promise<{ success: boolean; client?: Client; error?: string }>;
+  updateClient: (id: string, data: Partial<Client>) => Promise<{ success: boolean; client?: Client; error?: string }>;
+  deleteClient: (id: string) => Promise<{ success: boolean; error?: string }>;
 
   // System
   resetAllData: () => void;
@@ -466,12 +487,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (Array.isArray(clientsData.clients) && clientsData.clients.length > 0 && isMounted) {
             const mappedClients: Client[] = clientsData.clients.map((c: any) => ({
               id: String(c.id),
+              slug: c.slug || undefined,
               name: c.name,
               industry: c.industry || 'Corporate',
               contact: c.contact_name || c.name,
+              contactEmail: c.contact_email || '',
               email: c.contact_email || 'client@cubetechconsults.com',
+              contactPhone: c.contact_phone || '',
+              phone: c.contact_phone || '',
+              fee: Number(c.fee_percentage) || 15,
               feePct: Number(c.fee_percentage) || 15,
-              guaranteeDays: Number(c.guarantee_days) || 90
+              guarantee: Number(c.guarantee_days) || 90,
+              guaranteeDays: Number(c.guarantee_days) || 90,
+              createdAt: c.created_at ? String(c.created_at).split('T')[0] : undefined
             }));
             setClients(mappedClients);
             saveStorage('clients', mappedClients);
@@ -524,6 +552,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Modals & Toast
   const [modal, setModal] = useState<ModalState | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Progressive App Notifications
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(() => getUnreadNotificationCount());
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setUnreadNotificationCount(getUnreadNotificationCount());
+    };
+    window.addEventListener('recruitbyct_notifications_changed', handleUpdate);
+    return () => window.removeEventListener('recruitbyct_notifications_changed', handleUpdate);
+  }, []);
+
+  const openNotifications = () => setIsNotificationsOpen(true);
+  const closeNotifications = () => setIsNotificationsOpen(false);
 
   // Deep-linking URL handler: maps /jobs/:slug, /apply/:slug, ?job=:id, ?ref=:ref directly to views/modals
   useEffect(() => {
@@ -1184,6 +1227,143 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast(`Job order '${target?.title || jobId}' deleted.`);
   };
 
+  // Client Management CRUD (Agency Recruiter / Admin)
+  const createClient = async (data: {
+    name: string;
+    industry?: string;
+    contact: string;
+    email?: string;
+    phone?: string;
+    fee?: number;
+    guarantee?: number;
+  }): Promise<{ success: boolean; client?: Client; error?: string }> => {
+    try {
+      const randomSuffix = Math.random().toString(36).substring(2, 6);
+      const tempId = `c_${Date.now().toString(36)}_${randomSuffix}`;
+      const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + randomSuffix;
+
+      const newClient: Client = {
+        id: tempId,
+        slug,
+        name: data.name.trim(),
+        industry: data.industry?.trim() || 'IT & Professional Services',
+        contact: data.contact.trim(),
+        email: data.email?.trim() || '',
+        contactEmail: data.email?.trim() || '',
+        phone: data.phone?.trim() || '',
+        contactPhone: data.phone?.trim() || '',
+        fee: data.fee ?? 15,
+        feePct: data.fee ?? 15,
+        guarantee: data.guarantee ?? 90,
+        guaranteeDays: data.guarantee ?? 90,
+        createdAt: new Date().toISOString().split('T')[0]
+      };
+
+      // 1. Optimistically update local state & storage
+      setClients(prev => [newClient, ...prev]);
+      logActivity(`Created client employer: ${newClient.name} (${newClient.industry})`);
+      showToast(`Client '${newClient.name}' added successfully.`);
+
+      // 2. Dispatch in-app notification
+      addStoredNotification({
+        type: 'reminder',
+        title: 'New Client Onboarded',
+        message: `${newClient.name} (${newClient.industry}) added with ${newClient.fee}% placement fee and ${newClient.guarantee}-day guarantee.`,
+        targetView: 'clients'
+      });
+
+      // 3. Persist to Neon Postgres backend
+      const res = await apiClient.neonFunctions.createClient({
+        id: tempId,
+        slug,
+        name: newClient.name,
+        industry: newClient.industry,
+        contactName: newClient.contact,
+        contactEmail: newClient.email,
+        contactPhone: newClient.phone,
+        feePercentage: newClient.fee,
+        guaranteeDays: newClient.guarantee
+      });
+
+      if (res && res.client) {
+        const finalClient: Client = {
+          ...newClient,
+          id: String(res.client.id),
+          slug: res.client.slug || slug
+        };
+        setClients(prev => prev.map(c => c.id === tempId ? finalClient : c));
+        return { success: true, client: finalClient };
+      }
+
+      return { success: true, client: newClient };
+    } catch (err: any) {
+      console.warn('[Create Client Error]', err);
+      return { success: false, error: err.message || 'Failed to create client.' };
+    }
+  };
+
+  const updateClient = async (
+    id: string,
+    updates: Partial<Client>
+  ): Promise<{ success: boolean; client?: Client; error?: string }> => {
+    try {
+      const existing = clients.find(c => c.id === id);
+      if (!existing) {
+        return { success: false, error: 'Client not found.' };
+      }
+
+      const updatedClient: Client = {
+        ...existing,
+        ...updates,
+        fee: updates.fee ?? updates.feePct ?? existing.fee,
+        feePct: updates.fee ?? updates.feePct ?? existing.fee,
+        guarantee: updates.guarantee ?? updates.guaranteeDays ?? existing.guarantee,
+        guaranteeDays: updates.guarantee ?? updates.guaranteeDays ?? existing.guarantee,
+        contactEmail: updates.contactEmail ?? updates.email ?? existing.contactEmail,
+        email: updates.contactEmail ?? updates.email ?? existing.email,
+        contactPhone: updates.contactPhone ?? updates.phone ?? existing.contactPhone,
+        phone: updates.contactPhone ?? updates.phone ?? existing.phone
+      };
+
+      setClients(prev => prev.map(c => c.id === id ? updatedClient : c));
+      logActivity(`Updated client employer terms: ${updatedClient.name}`);
+      showToast(`Client '${updatedClient.name}' updated.`);
+
+      // Persist to Neon Postgres
+      await apiClient.neonFunctions.updateClient(id, {
+        name: updatedClient.name,
+        industry: updatedClient.industry,
+        contactName: updatedClient.contact,
+        contactEmail: updatedClient.contactEmail,
+        contactPhone: updatedClient.contactPhone,
+        feePercentage: updatedClient.fee,
+        guaranteeDays: updatedClient.guarantee,
+        slug: updatedClient.slug
+      });
+
+      return { success: true, client: updatedClient };
+    } catch (err: any) {
+      console.warn('[Update Client Error]', err);
+      return { success: false, error: err.message || 'Failed to update client.' };
+    }
+  };
+
+  const deleteClient = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const target = clients.find(c => c.id === id);
+      setClients(prev => prev.filter(c => c.id !== id));
+      if (target) logActivity(`Deleted client employer: ${target.name}`);
+      showToast(`Client '${target?.name || id}' deleted.`);
+
+      // Persist to Neon Postgres
+      await apiClient.neonFunctions.deleteClient(id);
+      return { success: true };
+    } catch (err: any) {
+      console.warn('[Delete Client Error]', err);
+      return { success: false, error: err.message || 'Failed to delete client.' };
+    }
+  };
+
   // 4. Batch import shortlisted candidates from Resume Scanner
   const importBatchCandidates = (jobId: string, candidatesList: any[]) => {
     const targetJob = jobs.find(j => j.id === jobId);
@@ -1771,6 +1951,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         closeModal,
         toast,
         showToast,
+        isNotificationsOpen,
+        openNotifications,
+        closeNotifications,
+        unreadNotificationCount,
         careersFilter,
         setCareersFilter,
         trackState,
@@ -1811,6 +1995,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         withdrawApplication,
         inviteCandidateToAiInterview,
         submitAiInterviewResponses,
+        createClient,
+        updateClient,
+        deleteClient,
         resetAllData
       }}
     >

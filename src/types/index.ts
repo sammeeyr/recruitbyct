@@ -67,6 +67,15 @@ export interface Client {
   contact: string;
   fee: number; // percentage, e.g. 15 for 15%
   guarantee: number; // days, e.g. 90
+  slug?: string;
+  contactEmail?: string;
+  email?: string;
+  contactPhone?: string;
+  phone?: string;
+  feePct?: number;
+  guaranteeDays?: number;
+  createdAt?: string;
+  notes?: string;
 }
 
 export interface KnockoutQuestion {
