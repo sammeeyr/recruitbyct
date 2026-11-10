@@ -372,7 +372,20 @@ export default async function handler(req: Request): Promise<Response> {
     // 5. POST /applications - Candidate Application Submission
     if (path === "/applications" && method === "POST") {
       const body = await req.json();
-      const { jobId, fullName, email, phone, resumeFileUrl, knockoutAnswers = {} } = body;
+      const {
+        jobId,
+        fullName,
+        email,
+        phone,
+        location,
+        yearsExperience,
+        skills,
+        headline,
+        linkedinUrl,
+        source = "Careers site",
+        resumeFileUrl,
+        knockoutAnswers = {}
+      } = body;
 
       if (!jobId || !fullName || !email) {
         return Response.json(
@@ -383,23 +396,37 @@ export default async function handler(req: Request): Promise<Response> {
 
       // Upsert candidate
       const [cand] = await sql`
-        INSERT INTO candidates (full_name, email, phone, location)
-        VALUES (${fullName}, ${email}, ${phone || "N/A"}, 'Abuja')
-        ON CONFLICT (email) DO UPDATE SET updated_at = NOW()
+        INSERT INTO candidates (full_name, email, phone, location, years_experience, skills, headline, linkedin_url)
+        VALUES (
+          ${fullName},
+          ${email},
+          ${phone || "N/A"},
+          ${location || "Abuja"},
+          ${yearsExperience ? Number(yearsExperience) : 0},
+          ${Array.isArray(skills) ? skills : []},
+          ${headline || null},
+          ${linkedinUrl || null}
+        )
+        ON CONFLICT (email) DO UPDATE SET
+          full_name = EXCLUDED.full_name,
+          phone = CASE WHEN EXCLUDED.phone <> 'N/A' THEN EXCLUDED.phone ELSE candidates.phone END,
+          linkedin_url = COALESCE(EXCLUDED.linkedin_url, candidates.linkedin_url),
+          updated_at = NOW()
         RETURNING id, full_name, email;
       `;
 
-      // Generate CTC application reference (e.g. CTC-APP-XXXXX)
-      const refCode = `CTC-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+      // Generate application reference code
+      const prefix = source.toLowerCase().includes("linkedin") ? "LI" : "CTC";
+      const refCode = `${prefix}-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
       // Create application
       const [app] = await sql`
         INSERT INTO applications (
           reference_code, job_id, candidate_id, stage, source,
-          resume_file_url, knockout_answers
+          resume_file_url, knockout_answers, linkedin_url
         ) VALUES (
-          ${refCode}, ${jobId}, ${cand.id}, 'new', 'Careers Portal',
-          ${resumeFileUrl || null}, ${JSON.stringify(knockoutAnswers)}
+          ${refCode}, ${jobId}, ${cand.id}, 'new', ${source},
+          ${resumeFileUrl || null}, ${JSON.stringify(knockoutAnswers)}, ${linkedinUrl || null}
         )
         RETURNING id, reference_code, stage, created_at;
       `;
@@ -564,10 +591,10 @@ export default async function handler(req: Request): Promise<Response> {
           SELECT 
             a.id, a.reference_code, a.job_id, a.candidate_id, a.stage, a.source,
             a.knockout_answers, a.resume_file_url, a.recruiter_notes, a.ai_interview,
-            a.is_revealed_to_client, a.is_on_hold, a.created_at, a.updated_at,
+            a.is_revealed_to_client, a.is_on_hold, a.linkedin_url, a.created_at, a.updated_at,
             c.full_name as candidate_name, c.email as candidate_email, c.phone as candidate_phone,
             c.location as candidate_location, c.headline as candidate_headline, c.years_experience as candidate_years,
-            c.skills as candidate_skills,
+            c.skills as candidate_skills, c.linkedin_url as candidate_linkedin_url,
             j.title as job_title
           FROM applications a
           LEFT JOIN candidates c ON a.candidate_id = c.id
@@ -580,10 +607,10 @@ export default async function handler(req: Request): Promise<Response> {
           SELECT 
             a.id, a.reference_code, a.job_id, a.candidate_id, a.stage, a.source,
             a.knockout_answers, a.resume_file_url, a.recruiter_notes, a.ai_interview,
-            a.is_revealed_to_client, a.is_on_hold, a.created_at, a.updated_at,
+            a.is_revealed_to_client, a.is_on_hold, a.linkedin_url, a.created_at, a.updated_at,
             c.full_name as candidate_name, c.email as candidate_email, c.phone as candidate_phone,
             c.location as candidate_location, c.headline as candidate_headline, c.years_experience as candidate_years,
-            c.skills as candidate_skills,
+            c.skills as candidate_skills, c.linkedin_url as candidate_linkedin_url,
             j.title as job_title
           FROM applications a
           LEFT JOIN candidates c ON a.candidate_id = c.id
@@ -596,10 +623,10 @@ export default async function handler(req: Request): Promise<Response> {
           SELECT 
             a.id, a.reference_code, a.job_id, a.candidate_id, a.stage, a.source,
             a.knockout_answers, a.resume_file_url, a.recruiter_notes, a.ai_interview,
-            a.is_revealed_to_client, a.is_on_hold, a.created_at, a.updated_at,
+            a.is_revealed_to_client, a.is_on_hold, a.linkedin_url, a.created_at, a.updated_at,
             c.full_name as candidate_name, c.email as candidate_email, c.phone as candidate_phone,
             c.location as candidate_location, c.headline as candidate_headline, c.years_experience as candidate_years,
-            c.skills as candidate_skills,
+            c.skills as candidate_skills, c.linkedin_url as candidate_linkedin_url,
             j.title as job_title
           FROM applications a
           LEFT JOIN candidates c ON a.candidate_id = c.id
@@ -1086,6 +1113,189 @@ export default async function handler(req: Request): Promise<Response> {
           timestamp: new Date().toISOString()
         },
         { headers: corsHeaders }
+      );
+    }
+
+    // 10b. GET /webhooks/linkedin & /linkedin/webhook - Webhook Verification / Handshake
+    if ((path === "/webhooks/linkedin" || path === "/linkedin/webhook") && method === "GET") {
+      const challenge = url.searchParams.get("challenge") || url.searchParams.get("hub.challenge");
+      if (challenge) {
+        return new Response(challenge, {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "text/plain" }
+        });
+      }
+      return Response.json(
+        {
+          status: "active",
+          service: "LinkedIn Talent Solutions & Lead Gen Webhook",
+          endpoint: "POST /webhooks/linkedin",
+          description: "Ingests candidate applications directly from LinkedIn Easy Apply, Lead Gen Forms, and ATS integrations into Neon Postgres.",
+          supportedPayloadTypes: [
+            "application/json",
+            "LinkedIn Lead Gen Form",
+            "LinkedIn Apply Connect",
+            "Zapier / Make LinkedIn Lead Sync"
+          ],
+          version: "2.1.0"
+        },
+        { headers: corsHeaders }
+      );
+    }
+
+    // 10c. POST /webhooks/linkedin & /linkedin/webhook - Ingest LinkedIn Applications / Leads
+    if ((path === "/webhooks/linkedin" || path === "/linkedin/webhook") && method === "POST") {
+      const body = await req.json();
+
+      // Normalize candidate payload from various LinkedIn integration formats:
+      const candidatePayload = body.candidate || body.applicant || body.lead || body;
+      const fullName = (
+        candidatePayload.full_name ||
+        candidatePayload.fullName ||
+        candidatePayload.name ||
+        `${candidatePayload.firstName || ''} ${candidatePayload.lastName || ''}`
+      ).trim();
+
+      const email = (candidatePayload.email || candidatePayload.emailAddress || "").trim();
+      const phone = (candidatePayload.phone || candidatePayload.phoneNumber || candidatePayload.mobile || "N/A").trim();
+      const location = (candidatePayload.location || candidatePayload.city || "Abuja").trim();
+      const headline = (candidatePayload.headline || candidatePayload.title || candidatePayload.jobTitle || "Applicant via LinkedIn").trim();
+      const linkedinUrl = (candidatePayload.linkedin_url || candidatePayload.linkedinUrl || candidatePayload.profileUrl || candidatePayload.publicProfileUrl || "").trim();
+      const yearsExperience = candidatePayload.years_experience || candidatePayload.years || candidatePayload.experienceYears || 0;
+      
+      let skills: string[] = [];
+      if (Array.isArray(candidatePayload.skills)) {
+        skills = candidatePayload.skills;
+      } else if (typeof candidatePayload.skills === 'string') {
+        skills = candidatePayload.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+      }
+
+      const resumeFileUrl = body.resume_url || body.resumeFileUrl || candidatePayload.resume_url || null;
+      const resumeFileName = body.resume_file_name || candidatePayload.resume_file_name || `${(fullName || 'LinkedIn_Candidate').replace(/\s+/g, '_')}_CV.pdf`;
+      const knockoutAnswers = body.answers || candidatePayload.answers || body.formResponse || {};
+
+      if (!email || !fullName) {
+        return Response.json(
+          { error: "full_name and email are required for LinkedIn lead ingestion" },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      // Match target Job Order
+      let matchedJobId = body.job_id || body.jobId;
+      let matchedJobTitle = "";
+      if (matchedJobId) {
+        const found = await sql`SELECT id, title FROM job_orders WHERE id = ${matchedJobId} LIMIT 1;`;
+        if (found.length > 0) matchedJobTitle = found[0].title;
+      }
+
+      if (!matchedJobTitle && (body.job_title || body.jobTitle || body.role)) {
+        const searchTitle = body.job_title || body.jobTitle || body.role;
+        const found = await sql`
+          SELECT id, title FROM job_orders 
+          WHERE title ILIKE ${'%' + searchTitle + '%'}
+          ORDER BY (state = 'open') DESC, created_at DESC 
+          LIMIT 1;
+        `;
+        if (found.length > 0) {
+          matchedJobId = found[0].id;
+          matchedJobTitle = found[0].title;
+        }
+      }
+
+      if (!matchedJobId) {
+        const fallback = await sql`SELECT id, title FROM job_orders WHERE state = 'open' ORDER BY created_at DESC LIMIT 1;`;
+        if (fallback.length > 0) {
+          matchedJobId = fallback[0].id;
+          matchedJobTitle = fallback[0].title;
+        } else {
+          return Response.json(
+            { error: "No open job orders available to attach this LinkedIn candidate application to." },
+            { status: 400, headers: corsHeaders }
+          );
+        }
+      }
+
+      // Upsert candidate in Postgres
+      const [cand] = await sql`
+        INSERT INTO candidates (
+          full_name, email, phone, location, years_experience, skills, headline, linkedin_url
+        ) VALUES (
+          ${fullName},
+          ${email},
+          ${phone},
+          ${location},
+          ${Number(yearsExperience) || 0},
+          ${skills},
+          ${headline},
+          ${linkedinUrl || null}
+        )
+        ON CONFLICT (email) DO UPDATE SET
+          full_name = EXCLUDED.full_name,
+          phone = CASE WHEN EXCLUDED.phone <> 'N/A' THEN EXCLUDED.phone ELSE candidates.phone END,
+          location = EXCLUDED.location,
+          headline = COALESCE(EXCLUDED.headline, candidates.headline),
+          linkedin_url = COALESCE(EXCLUDED.linkedin_url, candidates.linkedin_url),
+          updated_at = NOW()
+        RETURNING id, full_name, email;
+      `;
+
+      // Generate reference code
+      const refCode = `LI-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+
+      // Insert Application
+      const [app] = await sql`
+        INSERT INTO applications (
+          reference_code, job_id, candidate_id, stage, source,
+          resume_file_url, resume_file_name, knockout_answers, linkedin_url, recruiter_notes
+        ) VALUES (
+          ${refCode},
+          ${matchedJobId},
+          ${cand.id},
+          'new',
+          'LinkedIn',
+          ${resumeFileUrl},
+          ${resumeFileName},
+          ${JSON.stringify(knockoutAnswers)},
+          ${linkedinUrl || null},
+          'Ingested via LinkedIn Talent Solutions & Webhook Integration'
+        )
+        RETURNING id, reference_code, stage, source, created_at;
+      `;
+
+      // Log in Activity Trail
+      await sql`
+        INSERT INTO activity_logs (event, message, metadata)
+        VALUES (
+          'linkedin_application_ingested',
+          ${`Candidate ${fullName} applied for '${matchedJobTitle}' via LinkedIn (${refCode})`},
+          ${JSON.stringify({
+            applicationId: app.id,
+            candidateId: cand.id,
+            jobId: matchedJobId,
+            referenceCode: refCode,
+            email,
+            linkedinUrl
+          })}
+        );
+      `;
+
+      return Response.json(
+        {
+          status: "success",
+          message: "LinkedIn candidate application ingested successfully.",
+          application: {
+            id: app.id,
+            referenceCode: app.reference_code,
+            stage: app.stage,
+            source: app.source,
+            jobTitle: matchedJobTitle,
+            candidateName: cand.full_name,
+            candidateEmail: cand.email,
+            createdAt: app.created_at
+          }
+        },
+        { status: 201, headers: corsHeaders }
       );
     }
 

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { KNOCKOUT_QUESTIONS, LOCATIONS } from '../../data/mockData';
 import { formatFileSize, prettyKey, validateCvFile } from '../../utils/helpers';
-import { X, UploadCloud, CheckCircle } from 'lucide-react';
+import { X, UploadCloud, CheckCircle, Sparkles, Check, ExternalLink } from 'lucide-react';
+import { LinkedinIcon } from '../common/LinkedinIcon';
 
 export const ApplyModal: React.FC = () => {
   const { modal, closeModal, openModal, jobs, clients, submitApplication } = useApp();
@@ -13,6 +14,10 @@ export const ApplyModal: React.FC = () => {
   const [location, setLocation] = useState('Abuja');
   const [years, setYears] = useState(3);
   const [skills, setSkills] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [isLinkedInConnected, setIsLinkedInConnected] = useState(false);
+  const [showLinkedInPrompt, setShowLinkedInPrompt] = useState(false);
+  const [customLinkedInInput, setCustomLinkedInInput] = useState('');
   const [selectedCvFile, setSelectedCvFile] = useState<File | null>(null);
   const [isSampleCv, setIsSampleCv] = useState(false);
   const [cvError, setCvError] = useState('');
@@ -36,6 +41,31 @@ export const ApplyModal: React.FC = () => {
     .map(x => x.keys[0])
     .filter(Boolean)
     .slice(0, 6);
+
+  useEffect(() => {
+    if (modal?.data?.prefillLinkedIn && !isLinkedInConnected) {
+      handleLinkedInPrefill('https://www.linkedin.com/in/applicant-profile');
+    }
+  }, [modal?.data]);
+
+  const handleLinkedInPrefill = (urlOverride?: string) => {
+    const defaultProfileUrl = urlOverride || customLinkedInInput.trim() || 'https://www.linkedin.com/in/applicant-profile';
+    setLinkedinUrl(defaultProfileUrl);
+    setIsLinkedInConnected(true);
+    setIsSampleCv(true);
+    setSelectedCvFile(null);
+    setCvError('');
+    setShowLinkedInPrompt(false);
+
+    if (!fullName) setFullName('Chidera Nwosu');
+    if (!email) setEmail('chidera.nwosu@example.com');
+    if (!phone) setPhone('0802 345 6789');
+    if (!location) setLocation(job.location.includes('Lagos') ? 'Lagos' : 'Abuja');
+    setYears(Math.max(job.minYears, 3));
+
+    const autoSkills = relevantSkills.map(prettyKey).slice(0, 4).join(', ');
+    if (!skills) setSkills(autoSkills);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsSampleCv(false);
@@ -107,7 +137,9 @@ export const ApplyModal: React.FC = () => {
       years: Number(years),
       skills: skillList,
       answers,
-      fileName: selectedCvFile ? selectedCvFile.name : 'Sample_CV.pdf'
+      fileName: selectedCvFile ? selectedCvFile.name : (isLinkedInConnected ? `${fullName.replace(/\s+/g, '_')}_LinkedIn_Summary.pdf` : 'Sample_CV.pdf'),
+      source: isLinkedInConnected ? 'LinkedIn' : 'Careers site',
+      linkedinUrl: linkedinUrl.trim() || undefined
     });
   };
 
@@ -137,6 +169,131 @@ export const ApplyModal: React.FC = () => {
           Apply with our Google Form instead
         </button>
       </div>
+
+      {/* LinkedIn 1-Click Prefill Banner */}
+      <div
+        style={{
+          background: isLinkedInConnected ? 'rgba(16, 185, 129, 0.08)' : 'rgba(10, 102, 194, 0.08)',
+          border: `1px solid ${isLinkedInConnected ? 'rgba(16, 185, 129, 0.3)' : 'rgba(10, 102, 194, 0.25)'}`,
+          borderRadius: '8px',
+          padding: '12px 14px',
+          marginBottom: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '6px',
+              background: '#0A66C2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff'
+            }}
+          >
+            <LinkedinIcon size={16} />
+          </div>
+          <div>
+            <b style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              {isLinkedInConnected ? (
+                <span style={{ color: '#10B981', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <Check size={13} strokeWidth={3} /> Connected to LinkedIn Profile
+                </span>
+              ) : (
+                'Apply Faster with LinkedIn'
+              )}
+            </b>
+            <p className="xs muted" style={{ margin: 0 }}>
+              {isLinkedInConnected
+                ? `Details, experience, and skills prefilled (${linkedinUrl})`
+                : 'Auto-fill your contact details, experience, and skills in 1 click.'}
+            </p>
+          </div>
+        </div>
+
+        {!isLinkedInConnected ? (
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => handleLinkedInPrefill()}
+              style={{
+                background: '#0A66C2',
+                color: '#fff',
+                borderColor: '#0A66C2',
+                fontSize: '12px',
+                padding: '5px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+            >
+              <Sparkles size={12} /> 1-Click Prefill
+            </button>
+            <button
+              type="button"
+              className="btn ghost sm"
+              onClick={() => setShowLinkedInPrompt(!showLinkedInPrompt)}
+              style={{ fontSize: '12px', padding: '5px 10px' }}
+            >
+              Enter Profile URL
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="linkbtn xs"
+            onClick={() => {
+              setIsLinkedInConnected(false);
+              setLinkedinUrl('');
+            }}
+            style={{ color: 'var(--red-text)' }}
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      {showLinkedInPrompt && !isLinkedInConnected && (
+        <div
+          style={{
+            background: 'var(--surface-2)',
+            border: '1px solid var(--line)',
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '16px'
+          }}
+        >
+          <label htmlFor="li-url-input" className="xs" style={{ display: 'block', marginBottom: '4px', fontWeight: 600 }}>
+            Enter your public LinkedIn Profile URL
+          </label>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              id="li-url-input"
+              type="url"
+              placeholder="https://www.linkedin.com/in/your-profile"
+              value={customLinkedInInput}
+              onChange={e => setCustomLinkedInInput(e.target.value)}
+              style={{ flex: 1, fontSize: '12px' }}
+            />
+            <button
+              type="button"
+              className="btn primary sm"
+              onClick={() => handleLinkedInPrefill()}
+              style={{ background: '#0A66C2', borderColor: '#0A66C2' }}
+            >
+              Sync Profile
+            </button>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <div className="two">
@@ -193,6 +350,20 @@ export const ApplyModal: React.FC = () => {
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="field">
+          <label htmlFor="ap-linkedin">
+            LinkedIn Profile URL <span className="xs muted">(Optional)</span>
+          </label>
+          <input
+            id="ap-linkedin"
+            type="url"
+            value={linkedinUrl}
+            onChange={e => setLinkedinUrl(e.target.value)}
+            placeholder="https://www.linkedin.com/in/your-profile"
+            autoComplete="url"
+          />
         </div>
 
         <div className="two">

@@ -12,6 +12,7 @@ import {
   STAGE_LABELS
 } from '../../utils/helpers';
 import { Check, X, FileText, Sparkles, Clock, ExternalLink } from 'lucide-react';
+import { LinkedinIcon } from '../common/LinkedinIcon';
 import { Stage } from '../../types';
 
 export const ApplicationDetailModal: React.FC = () => {
@@ -294,7 +295,31 @@ export const ApplicationDetailModal: React.FC = () => {
         <dd>{candidate.avail ? `In ${candidate.avail} days` : 'Immediately'}</dd>
 
         <dt>Source</dt>
-        <dd>{app.source}</dd>
+        <dd>
+          {app.source === 'LinkedIn' ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0A66C2', fontWeight: 600 }}>
+              <LinkedinIcon size={12} /> LinkedIn
+            </span>
+          ) : (
+            app.source
+          )}
+        </dd>
+
+        {(app.linkedinUrl || candidate.linkedinUrl) && (
+          <>
+            <dt>LinkedIn</dt>
+            <dd>
+              <a
+                href={app.linkedinUrl || candidate.linkedinUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: '#0A66C2', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'underline', fontWeight: 500 }}
+              >
+                <LinkedinIcon size={12} /> View Profile <ExternalLink size={11} />
+              </a>
+            </dd>
+          </>
+        )}
 
         <dt>Reference</dt>
         <dd className="mono">{app.ref}</dd>

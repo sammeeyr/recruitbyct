@@ -222,6 +222,15 @@ export const JobOrdersView: React.FC = () => {
                         <button
                           type="button"
                           className="iconbtn"
+                          title="Share on LinkedIn"
+                          onClick={() => openModal({ type: 'share-linkedin', jobId: j.id })}
+                          style={{ padding: '5px', color: '#0A66C2' }}
+                        >
+                          <LinkedinIcon size={14} style={{ color: '#0A66C2' }} />
+                        </button>
+                        <button
+                          type="button"
+                          className="iconbtn"
                           title="Open Pipeline"
                           onClick={() => handleOpenPipeline(j.id)}
                           style={{ padding: '5px' }}

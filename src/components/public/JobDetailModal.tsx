@@ -4,6 +4,7 @@ import { StatusChip } from '../common/StatusChip';
 import { daysDiff, formatDate, formatNaira, getJobStatus } from '../../utils/helpers';
 import { RichTextRenderer } from '../common/RichTextRenderer';
 import { MapPin, X } from 'lucide-react';
+import { LinkedinIcon } from '../common/LinkedinIcon';
 
 export const JobDetailModal: React.FC = () => {
   const { modal, closeModal, openModal, jobs, clients } = useApp();
@@ -96,13 +97,32 @@ export const JobDetailModal: React.FC = () => {
             roles or track an earlier application.
           </div>
         ) : (
-          <button
-            type="button"
-            className="btn primary block"
-            onClick={() => openModal({ type: 'job', id: job.id, mode: 'apply' })}
-          >
-            Apply for this role
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn primary block"
+              onClick={() => openModal({ type: 'job', id: job.id, mode: 'apply' })}
+              style={{ fontWeight: 600 }}
+            >
+              Apply for this role
+            </button>
+            <button
+              type="button"
+              className="btn ghost block"
+              onClick={() => openModal({ type: 'job', id: job.id, mode: 'apply', data: { prefillLinkedIn: true } })}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                borderColor: 'rgba(10, 102, 194, 0.4)',
+                color: '#0A66C2',
+                fontWeight: 600
+              }}
+            >
+              <LinkedinIcon size={16} style={{ color: '#0A66C2' }} /> Apply with LinkedIn
+            </button>
+          </div>
         )}
       </div>
     </>

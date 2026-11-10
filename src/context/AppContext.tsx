@@ -55,6 +55,7 @@ interface ModalState {
     | 'aidraft'
     | 'resume-import'
     | 'linkedin-jobs'
+    | 'share-linkedin'
     | 'paystack'
     | 'ai-interview-invite'
     | 'ai-interview-result';
@@ -122,6 +123,8 @@ interface AppContextType {
     skills: string[];
     answers: Record<string, string>;
     fileName: string;
+    source?: 'Careers site' | 'LinkedIn';
+    linkedinUrl?: string;
   }) => void;
   draftNewJobOrder: (data: {
     clientId: string;
@@ -728,7 +731,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     years,
     skills,
     answers,
-    fileName
+    fileName,
+    source = 'Careers site',
+    linkedinUrl
   }: {
     jobId: string;
     name: string;
@@ -739,6 +744,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     skills: string[];
     answers: Record<string, string>;
     fileName: string;
+    source?: 'Careers site' | 'LinkedIn';
+    linkedinUrl?: string;
   }) => {
     const j = jobs.find(x => x.id === jobId);
     if (!j) return;
@@ -760,6 +767,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         phone,
         years: Math.max(candidateObj.years, years),
         skills: updatedSkills,
+        linkedinUrl: linkedinUrl || candidateObj.linkedinUrl,
         verified: addDays(0)
       };
 
@@ -778,7 +786,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         verified: addDays(0),
         drive: driveConnected ? 'synced' : 'queued',
         email,
-        phone
+        phone,
+        linkedinUrl
       };
       setCandidates(prev => [newCand, ...prev]);
       candidateObj = newCand;
@@ -793,11 +802,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stage: 'new',
       applied: new Date().toISOString(),
       updated: new Date().toISOString(),
-      source: 'Careers site',
+      source,
       answers,
       file: fileName || `${name.replace(/\s+/g, '_')}_CV.pdf`,
       notes: '',
-      revealed: false
+      revealed: false,
+      linkedinUrl
     };
 
     setApplications(prev => [newApp, ...prev]);
@@ -811,6 +821,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fullName: name,
         email,
         phone,
+        location: loc,
+        yearsExperience: years,
+        skills,
+        linkedinUrl,
+        source,
         resumeFileUrl: newApp.file,
         knockoutAnswers: answers
       })

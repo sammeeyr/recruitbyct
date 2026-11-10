@@ -11,6 +11,7 @@ import { NewJobOrderModal } from '../staff/NewJobOrderModal';
 import { EditJobOrderModal } from '../staff/EditJobOrderModal';
 import { ResumeBatchScreeningModal } from '../staff/ResumeBatchScreeningModal';
 import { LinkedInJobsModal } from '../staff/LinkedInJobsModal';
+import { ShareLinkedInModal } from '../staff/ShareLinkedInModal';
 import { RejectMessageModal } from '../staff/RejectMessageModal';
 import { PaystackListingModal } from '../staff/PaystackListingModal';
 import { AiInterviewInviteModal } from '../staff/AiInterviewInviteModal';
@@ -49,6 +50,7 @@ export const ModalContainer: React.FC = () => {
     modal.type === 'editjob' ||
     modal.type === 'resume-import' ||
     modal.type === 'linkedin-jobs' ||
+    modal.type === 'share-linkedin' ||
     modal.type === 'paystack' ||
     modal.type === 'ai-interview-invite' ||
     modal.type === 'ai-interview-result';
@@ -91,6 +93,7 @@ export const ModalContainer: React.FC = () => {
         {modal.type === 'editjob' && <EditJobOrderModal />}
         {modal.type === 'resume-import' && <ResumeBatchScreeningModal />}
         {modal.type === 'linkedin-jobs' && <LinkedInJobsModal />}
+        {modal.type === 'share-linkedin' && <ShareLinkedInModal />}
         {modal.type === 'paystack' && <PaystackListingModal />}
         {modal.type === 'ai-interview-invite' && <AiInterviewInviteModal />}
         {modal.type === 'ai-interview-result' && <AiInterviewResultModal />}

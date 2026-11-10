@@ -119,6 +119,7 @@ export interface Candidate {
   drive: 'synced' | 'queued';
   email: string;
   phone: string;
+  linkedinUrl?: string;
 }
 
 export interface Application {
@@ -129,11 +130,12 @@ export interface Application {
   stage: Stage;
   applied: string; // ISO string
   updated: string; // ISO string
-  source: 'Careers site' | 'Email' | 'WhatsApp' | 'Google Form' | 'Upload' | 'Talent pool';
+  source: 'Careers site' | 'Email' | 'WhatsApp' | 'Google Form' | 'Upload' | 'Talent pool' | 'LinkedIn';
   answers: Record<string, string>;
   file: string;
   notes: string;
   revealed: boolean;
+  linkedinUrl?: string;
   prev?: Stage;
   hold?: boolean;
   rejecting?: boolean;

@@ -688,17 +688,68 @@ export const AdminControlPanelView: React.FC = () => {
 
           <section className="card" style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <b style={{ fontSize: '15px' }}>LinkedIn Talent Solutions</b>
+              <b style={{ fontSize: '15px' }}>LinkedIn Talent Solutions & Webhooks</b>
               <span className="chip good">Configured</span>
             </div>
             <dl className="kv">
               <dt>Company URN</dt>
               <dd className="mono xs">urn:li:organization:9823104</dd>
               <dt>OAuth Scopes</dt>
-              <dd className="mono xs">r_organization_social, rw_organization_admin</dd>
-              <dt>Auto-Sync</dt>
-              <dd>Active managed postings retrieved</dd>
+              <dd className="mono xs">r_organization_social, rw_organization_admin, r_basicprofile</dd>
+              <dt>Webhook Ingestion</dt>
+              <dd className="mono xs" style={{ wordBreak: 'break-all', color: '#34D399' }}>
+                https://br-gentle-fire-an6dvebb-ats.compute.c-6.us-east-1.aws.neon.tech/webhooks/linkedin
+              </dd>
+              <dt>Active Capabilities</dt>
+              <dd>Social Broadcast, Apply with LinkedIn, Easy Apply Webhook</dd>
             </dl>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '14px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={() => openModal({ type: 'linkedin-jobs' })}
+              >
+                Manage LinkedIn Postings
+              </button>
+              <button
+                type="button"
+                className="btn ghost sm"
+                onClick={async () => {
+                  try {
+                    const testPayload = {
+                      candidate: {
+                        full_name: 'Amara Kalu',
+                        email: `amara.kalu.${Date.now().toString().slice(-4)}@example.com`,
+                        phone: '+2348039876543',
+                        location: 'Lagos',
+                        headline: 'Lead Growth Product Manager',
+                        years_experience: 6,
+                        linkedin_url: 'https://www.linkedin.com/in/amara-kalu-test',
+                        skills: ['Product Strategy', 'Growth Marketing', 'Data Analytics']
+                      },
+                      job_title: 'Customer Experience / Growth Strategist',
+                      answers: { ko1: 'yes', ko2: 'yes', ko3: 'yes' }
+                    };
+                    const res = await fetch('https://br-gentle-fire-an6dvebb-ats.compute.c-6.us-east-1.aws.neon.tech/webhooks/linkedin', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(testPayload)
+                    });
+                    const d = await res.json();
+                    if (d.status === 'success') {
+                      showToast(`Test lead '${d.application.candidateName}' (${d.application.referenceCode}) ingested via LinkedIn webhook!`);
+                      fetchAdminData();
+                    } else {
+                      showToast(`Webhook responded: ${d.error || 'Failed'}`);
+                    }
+                  } catch (err: any) {
+                    showToast(`Webhook test failed: ${err.message}`);
+                  }
+                }}
+              >
+                Test Webhook Ingestion
+              </button>
+            </div>
           </section>
         </div>
       )}

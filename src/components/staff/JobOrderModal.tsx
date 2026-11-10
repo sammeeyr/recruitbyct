@@ -2,7 +2,8 @@ import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { formatNaira, prettyKey } from '../../utils/helpers';
 import { RichTextRenderer } from '../common/RichTextRenderer';
-import { Check, X, Edit2, UploadCloud } from 'lucide-react';
+import { Check, X, Edit2, UploadCloud, Share2 } from 'lucide-react';
+import { LinkedinIcon } from '../common/LinkedinIcon';
 
 export const JobOrderModal: React.FC = () => {
   const {
@@ -182,6 +183,16 @@ export const JobOrderModal: React.FC = () => {
       </div>
 
       <div className="row" style={{ marginTop: '22px', gap: '8px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn ghost sm"
+          onClick={() => openModal({ type: 'share-linkedin', jobId: job.id })}
+          style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#0A66C2', borderColor: 'rgba(10, 102, 194, 0.4)' }}
+          title="Broadcast and share this job order to LinkedIn"
+        >
+          <LinkedinIcon size={14} style={{ color: '#0A66C2' }} /> Share to LinkedIn
+        </button>
+
         <button
           type="button"
           className="btn ghost sm"
