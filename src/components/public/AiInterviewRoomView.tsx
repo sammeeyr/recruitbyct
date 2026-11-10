@@ -16,7 +16,10 @@ import {
   FileText,
   AlertCircle,
   HelpCircle,
-  Award
+  Award,
+  Volume2,
+  VolumeX,
+  Bot
 } from 'lucide-react';
 
 export const AiInterviewRoomView: React.FC = () => {
@@ -50,9 +53,18 @@ export const AiInterviewRoomView: React.FC = () => {
   const [recordSeconds, setRecordSeconds] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittingStage, setSubmittingStage] = useState('');
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [completedResult, setCompletedResult] = useState<any>(
     app?.aiInterview?.status === 'completed' ? app.aiInterview : null
   );
+
+  // Stop speaking when switching questions
+  useEffect(() => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  }, [currentIdx]);
 
   // Audio timer simulator
   useEffect(() => {
@@ -123,6 +135,28 @@ export const AiInterviewRoomView: React.FC = () => {
           (window as any).__ctc_rec.stop();
         } catch {}
       }
+    }
+  };
+
+  // Toggle Text-to-Speech narration of question
+  const toggleNarrateQuestion = () => {
+    if (!('speechSynthesis' in window)) {
+      showToast('Text-to-speech is not supported on this browser.');
+      return;
+    }
+
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(currentQ.question);
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+      setIsSpeaking(true);
+      window.speechSynthesis.speak(utterance);
     }
   };
 
@@ -469,7 +503,7 @@ export const AiInterviewRoomView: React.FC = () => {
         </div>
       </div>
 
-      {/* Feature banner matching user request */}
+      {/* 24/7 Intelligent Agent Interviewer Identity Banner */}
       <div
         style={{
           padding: '14px 18px',
@@ -478,18 +512,41 @@ export const AiInterviewRoomView: React.FC = () => {
           border: '1px solid rgba(255, 204, 0, 0.25)',
           marginBottom: '20px',
           display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: '12px'
         }}
       >
-        <Award size={20} style={{ color: 'var(--yellow)', flexShrink: 0 }} />
-        <div>
-          <b style={{ color: 'var(--yellow-text, #fef08a)', fontSize: '14px' }}>
-            Screen shortlisted applicants through an AI interview
-          </b>
-          <p className="xs muted" style={{ margin: 0, marginTop: '2px' }}>
-            Save time by inviting top applicants to complete an AI interview. Complete the structured prompts below to showcase your domain competency and problem-solving skills.
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              background: 'var(--yellow)',
+              color: '#1A1400',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}
+          >
+            <Bot size={20} />
+          </div>
+          <div>
+            <b style={{ color: 'var(--yellow-text, #fef08a)', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              Recruitbyct Intelligent AI Interviewer
+              <span className="badge green xs" style={{ fontSize: '10px', padding: '2px 6px' }}>24/7 Available</span>
+            </b>
+            <p className="xs muted" style={{ margin: 0, marginTop: '2px' }}>
+              Standardized automated screening based on role requirements. Complete questions using voice dictation or text.
+            </p>
+          </div>
+        </div>
+
+        <div className="xs muted" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Clock size={13} /> Self-paced · Approx. 10-15 mins
         </div>
       </div>
 
@@ -528,9 +585,27 @@ export const AiInterviewRoomView: React.FC = () => {
           {currentQ.question}
         </h2>
 
-        {/* Response Mode Selector & Dictation Bar */}
+        {/* Response Mode Selector, Voice Narration & Dictation Bar */}
         <div className="row spread" style={{ marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-          <div className="row" style={{ gap: '8px' }}>
+          <div className="row" style={{ gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className={`btn sm ${isSpeaking ? 'primary' : 'ghost'}`}
+              onClick={toggleNarrateQuestion}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              title="Listen to the AI Interviewer narrate this question aloud"
+            >
+              {isSpeaking ? (
+                <>
+                  <VolumeX size={14} /> Stop Narration
+                </>
+              ) : (
+                <>
+                  <Volume2 size={14} /> Listen to AI Interviewer
+                </>
+              )}
+            </button>
+
             <button
               type="button"
               className={`btn sm ${isRecording ? 'red' : 'ghost'}`}
