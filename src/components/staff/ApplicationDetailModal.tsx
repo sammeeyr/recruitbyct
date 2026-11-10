@@ -11,9 +11,10 @@ import {
   STAGE_INDEX,
   STAGE_LABELS
 } from '../../utils/helpers';
-import { Check, X, FileText, Sparkles, Clock, ExternalLink } from 'lucide-react';
+import { Check, X, FileText, Sparkles, Clock, ExternalLink, Globe } from 'lucide-react';
 import { LinkedinIcon } from '../common/LinkedinIcon';
 import { Stage } from '../../types';
+import { SUPPORTED_20_PLATFORMS } from '../../utils/candidateEnrichmentHelper';
 
 export const ApplicationDetailModal: React.FC = () => {
   const {
@@ -84,10 +85,100 @@ export const ApplicationDetailModal: React.FC = () => {
         {job.title} · {client?.name}
       </p>
 
-      <h2>{candidate.name}</h2>
-      <p className="muted">
-        {candidate.headline} · {candidate.loc} · {candidate.years} years of experience
-      </p>
+      {/* Candidate Header with Profile Avatar & Enrichment Action */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+        {candidate.avatarUrl ? (
+          <img
+            src={candidate.avatarUrl}
+            alt={candidate.name}
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '2px solid #A855F7',
+              boxShadow: '0 4px 12px rgba(168, 85, 247, 0.25)'
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'var(--red)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+              fontWeight: 800
+            }}
+          >
+            {candidate.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          </div>
+        )}
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <h2 style={{ margin: 0, fontSize: '22px' }}>{candidate.name}</h2>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => openModal({ type: 'candidate-enrichment', id: candidate.id })}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'linear-gradient(135deg, #A855F7 0%, #6366F1 100%)',
+                color: '#fff',
+                fontSize: '11px',
+                padding: '4px 10px'
+              }}
+            >
+              <Sparkles size={13} />
+              <span>AI Enriched Data</span>
+            </button>
+          </div>
+          <p className="muted" style={{ margin: '3px 0 0', fontSize: '13px' }}>
+            {candidate.headline} · {candidate.loc} · {candidate.years} years of experience
+          </p>
+        </div>
+      </div>
+
+      {/* Discovered Social Media Badges */}
+      {candidate.socialLinks && Object.keys(candidate.socialLinks).length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          <span className="xs muted" style={{ fontWeight: 600 }}>Web profiles:</span>
+          {Object.entries(candidate.socialLinks).slice(0, 6).map(([platId, url]) => {
+            const platform = SUPPORTED_20_PLATFORMS.find(p => p.id === platId);
+            return (
+              <a
+                key={platId}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`${platform?.name || platId}: ${url}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 7px',
+                  borderRadius: '5px',
+                  background: platform?.badgeBg || 'rgba(168, 85, 247, 0.12)',
+                  color: platform?.color || '#A855F7',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  textDecoration: 'none'
+                }}
+              >
+                <span>{platform?.name || platId}</span>
+                <ExternalLink size={9} />
+              </a>
+            );
+          })}
+        </div>
+      )}
 
       <div className="row" style={{ margin: '16px 0', gap: '14px' }}>
         <ScoreRing score={evaluation.score} />

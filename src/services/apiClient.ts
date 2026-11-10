@@ -330,6 +330,26 @@ export const apiClient = {
       } catch (err: any) {
         return { status: 'error', error: err.message || 'Failed to delete client' };
       }
+    },
+
+    async enrichCandidate(candidateData: {
+      id?: string;
+      name?: string;
+      headline?: string;
+      skills?: string[];
+      email?: string;
+      loc?: string;
+    }) {
+      try {
+        const res = await fetch(`${this.atsUrl}/candidates/enrich`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(candidateData)
+        });
+        return await res.json();
+      } catch (err: any) {
+        return { status: 'error', error: err.message || 'Failed to enrich candidate profile' };
+      }
     }
   }
 };

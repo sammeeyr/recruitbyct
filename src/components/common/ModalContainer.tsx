@@ -19,6 +19,7 @@ import { AiInterviewInviteModal } from '../staff/AiInterviewInviteModal';
 import { AiInterviewResultModal } from '../staff/AiInterviewResultModal';
 import { JobChannelsModal } from '../staff/JobChannelsModal';
 import { ClientModal } from '../staff/ClientModal';
+import { CandidateEnrichmentModal } from '../staff/CandidateEnrichmentModal';
 
 export const ModalContainer: React.FC = () => {
   const { modal, closeModal } = useApp();
@@ -59,7 +60,8 @@ export const ModalContainer: React.FC = () => {
     modal.type === 'ai-interview-invite' ||
     modal.type === 'ai-interview-result' ||
     modal.type === 'job-channels' ||
-    modal.type === 'client';
+    modal.type === 'client' ||
+    modal.type === 'candidate-enrichment';
 
   return (
     <div
@@ -108,6 +110,7 @@ export const ModalContainer: React.FC = () => {
         {modal.type === 'ai-interview-result' && <AiInterviewResultModal />}
         {modal.type === 'job-channels' && <JobChannelsModal />}
         {modal.type === 'client' && <ClientModal />}
+        {modal.type === 'candidate-enrichment' && <CandidateEnrichmentModal />}
         {modal.type === 'reject' && <RejectMessageModal />}
       </div>
     </div>

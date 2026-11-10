@@ -131,6 +131,11 @@ export interface Candidate {
   email: string;
   phone: string;
   linkedinUrl?: string;
+  avatarUrl?: string;
+  bio?: string;
+  socialLinks?: Record<string, string>;
+  publicInsights?: string[];
+  enrichedAt?: string;
 }
 
 export interface Application {

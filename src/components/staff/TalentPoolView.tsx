@@ -8,6 +8,7 @@ import {
   getScoreClass
 } from '../../utils/helpers';
 import { Candidate } from '../../types';
+import { Sparkles } from 'lucide-react';
 
 export const TalentPoolView: React.FC = () => {
   const {
@@ -130,14 +131,61 @@ export const TalentPoolView: React.FC = () => {
                 return (
                   <tr key={c.id}>
                     <td>
-                      <button
-                        type="button"
-                        className="name"
-                        onClick={() => openModal({ type: 'cand', id: c.id })}
-                      >
-                        {c.name}
-                      </button>
-                      <div className="muted xs">{c.headline}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {c.avatarUrl ? (
+                          <img
+                            src={c.avatarUrl}
+                            alt={c.name}
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '50%',
+                              objectFit: 'cover',
+                              border: '1.5px solid #A855F7',
+                              flexShrink: 0
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '50%',
+                              background: 'var(--red)',
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontWeight: 700,
+                              fontSize: '13px',
+                              flexShrink: 0
+                            }}
+                          >
+                            {c.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          </div>
+                        )}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className="name"
+                              onClick={() => openModal({ type: 'cand', id: c.id })}
+                            >
+                              {c.name}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openModal({ type: 'candidate-enrichment', id: c.id })}
+                              className="iconbtn"
+                              style={{ padding: '2px', color: '#A855F7' }}
+                              title="Enrich Profile with AI Engine (20+ Platforms)"
+                            >
+                              <Sparkles size={13} />
+                            </button>
+                          </div>
+                          <div className="muted xs">{c.headline}</div>
+                        </div>
+                      </div>
                     </td>
                     <td>{c.loc}</td>
                     <td className="num">{c.years} yrs</td>

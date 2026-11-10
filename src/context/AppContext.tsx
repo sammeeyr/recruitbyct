@@ -42,6 +42,7 @@ import {
   evaluateInterviewSubmission
 } from '../utils/aiInterviewHelper';
 import { getUnreadNotificationCount, addStoredNotification } from '../utils/notificationHelper';
+import { enrichCandidateProfile } from '../utils/candidateEnrichmentHelper';
 import { apiClient } from '../services/apiClient';
 import confetti from 'canvas-confetti';
 
@@ -63,7 +64,8 @@ interface ModalState {
     | 'ai-interview-invite'
     | 'ai-interview-result'
     | 'job-channels'
-    | 'client';
+    | 'client'
+    | 'candidate-enrichment';
   id?: string;
   jobId?: string;
   clientId?: string;
@@ -202,6 +204,9 @@ interface AppContextType {
   }) => Promise<{ success: boolean; client?: Client; error?: string }>;
   updateClient: (id: string, data: Partial<Client>) => Promise<{ success: boolean; client?: Client; error?: string }>;
   deleteClient: (id: string) => Promise<{ success: boolean; error?: string }>;
+
+  // Candidate Profile Enrichment (20+ Platforms)
+  enrichCandidate: (candidateId: string) => Promise<Candidate | null>;
 
   // System
   resetAllData: () => void;
@@ -398,7 +403,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   ]));
 
   const [jobs, setJobs] = useState<JobOrder[]>(() => loadStorage('jobs', []));
-  const [candidates, setCandidates] = useState<Candidate[]>(() => loadStorage('cands', []));
+  const [candidates, setCandidates] = useState<Candidate[]>(() => {
+    const loaded = loadStorage('cands', INITIAL_CANDIDATES);
+    return loaded.map(c => enrichCandidateProfile(c).enrichedCandidate);
+  });
   const [applications, setApplications] = useState<Application[]>(() => loadStorage('apps', []));
   const [placements, setPlacements] = useState<Placement[]>(() => loadStorage('placements', []));
   const [driveLogs, setDriveLogs] = useState<DriveLogItem[]>(() => loadStorage('driveLogs', []));
@@ -906,8 +914,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         phone,
         linkedinUrl
       };
-      setCandidates(prev => [newCand, ...prev]);
-      candidateObj = newCand;
+      // Seamlessly enrich profile with AI web engine across 20+ platforms
+      const { enrichedCandidate } = enrichCandidateProfile(newCand);
+      setCandidates(prev => [enrichedCandidate, ...prev]);
+      candidateObj = enrichedCandidate;
     }
 
     const ref = generateRefCode();
@@ -1364,6 +1374,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // 3d. Candidate Profile Enrichment (20+ Platforms)
+  const enrichCandidate = async (candidateId: string): Promise<Candidate | null> => {
+    const target = candidates.find(c => c.id === candidateId);
+    if (!target) return null;
+    const { enrichedCandidate, platformsDiscovered } = enrichCandidateProfile(target);
+    setCandidates(prev => prev.map(c => (c.id === candidateId ? enrichedCandidate : c)));
+    logActivity(`AI Engine enriched candidate profile across ${platformsDiscovered.length} platforms: ${enrichedCandidate.name}`);
+    showToast(`Profile for '${enrichedCandidate.name}' enriched across ${platformsDiscovered.length} platforms.`);
+    return enrichedCandidate;
+  };
+
   // 4. Batch import shortlisted candidates from Resume Scanner
   const importBatchCandidates = (jobId: string, candidatesList: any[]) => {
     const targetJob = jobs.find(j => j.id === jobId);
@@ -1386,7 +1407,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: item.email,
         phone: item.phone || 'N/A'
       };
-      newCandidates.push(candidateObj);
+      // Seamlessly enrich batch imported candidate profile with AI engine
+      const { enrichedCandidate } = enrichCandidateProfile(candidateObj);
+      newCandidates.push(enrichedCandidate);
 
       if (targetJob) {
         const ref = generateRefCode();
@@ -1998,6 +2021,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createClient,
         updateClient,
         deleteClient,
+        enrichCandidate,
         resetAllData
       }}
     >
